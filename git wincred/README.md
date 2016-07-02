@@ -1,4 +1,4 @@
-﻿# git windows 记住用户和密码
+﻿# git wincred
 
 在windows平台上，我们通常使用`tortoisegit`来进行使用git。而 `tortoisegit` 通过windows
 的凭证管理，来记住密码的。
