@@ -113,8 +113,8 @@ WebAppClssLoader(WEB-INF\lib\spring.jar)
 
 ```
 
-这会造成一个问题：WebAppClssLoader 能找到具体的业务代码类，但是，`业务代码却无法查
-询到spring类(ClassLoader双亲委托机制)`。所以，造成了`java.lang.ClassNotFoundException`错误的抛出
+这会造成一个问题：Spring的WebAppClssLoader 能找到具体的业务代码类，但是，`业务代码的AppClassLoader却无法查
+询到Spring类(ClassLoader双亲委托机制)`。所以，造成了`java.lang.ClassNotFoundException`错误的抛出
 
 解决方法：
 
