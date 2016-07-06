@@ -906,7 +906,7 @@ ctrl module 相当于mvc模块，用于接入http请求等，pom.xml为：
 
 ![war-lib](8DA7.tmp.jpg)
 
-[项目地址](maven-multi-project.zip)
+项目地址：[maven-multi-project](maven-multi-project.zip)
 
 ## 参考
 
