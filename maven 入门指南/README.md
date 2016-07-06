@@ -2,7 +2,7 @@
 
 > Maven项目对象模型(POM)，可以通过一小段描述信息来管理项目的构建，报告和文档的软件项目管理工具。
 
-一般来说，我们都使用maven来构建（编译，单元测试，打包，发布等）一个项目。
+**一般来说，我们都使用maven来构建（编译，单元测试，打包，发布等）一个项目。**
 
 ## 下载和安装
 
@@ -18,10 +18,10 @@
 
 ```
 
-set M2_HOME=%~DP0maven
+set M3_HOME=%~DP0maven
 set JAVA_HOME=%~DP0java
 
-set PATH=%PATH%;%M2_HOME%\bin;%JAVA_HOME%\bin;
+set PATH=%PATH%;%M3_HOME%\bin;%JAVA_HOME%\bin;
 
 ```
 
@@ -40,7 +40,7 @@ set PATH=%PATH%;%M2_HOME%\bin;%JAVA_HOME%\bin;
 
 ### 代码
 
-***pom.xml：***
+**pom.xml：**
 
 ```xml
 
@@ -88,7 +88,7 @@ public class App {
 
 ```
 
-***AppTest.java***
+**AppTest.java**
 
 ```java
 
@@ -237,15 +237,15 @@ Maven的生命周期是抽象的，实际需要插件来完成任务。这一过
 
 ### 默认bind
 
-在maven中，已经存在了一些预定义的插件以及相应的生命周期绑定。详细可见`%M2_HOME%\maven-core\src\main\resources\META-INF\plexus`。
+在maven中，已经存在了一些预定义的插件以及相应的生命周期绑定。详细可见`%M3_HOME%\maven-core\src\main\resources\META-INF\plexus\default-bindings.xml`。
 
 
-## 依赖
+## 依赖和坐标
 
 通过maven我们可以管理项目的构建过程。而依赖管理是项目构建最重要的一个点。现在，我们来说说
 `dependency`这个属性。
 
-通过`dependency`来描述一个依赖的属性：
+通过`dependency`来描述一个依赖的`坐标`属性：
 
 * groupId（必选）：依赖的组名
 * artifactId（必选）：依赖的项目名
@@ -253,7 +253,7 @@ Maven的生命周期是抽象的，实际需要插件来完成任务。这一过
 * type（可选）：依赖的类型，默认是jar。
 * scope(可选)：依赖范围
 
-### 依赖范围
+### 依赖范围(scope)
 
 我们知道，一个项目在测试的时候需要`junit`，然而在具体发布的时候却不需要。maven通过`scope`属性来指定`依赖范围`。常见的依赖范围：
 
@@ -312,25 +312,249 @@ Maven的生命周期是抽象的，实际需要插件来完成任务。这一过
 
 ```
 
-## pom.xml
-
-默认pom.xml `%M2_HOME%\maven-model-builder\src\main\resources\org\apache\maven\model\pom-4.0.0.xml`，其中配置了默认的项目属性。
-
-## 仓库
+## 仓库和镜像
 
 
-本地仓库：
+在maven中，通过仓库来管理所有的`依赖(jar,aar,war...)`。而通过`坐标`来引用这些依赖。
 
-通过修改`%M2_HOME%/conf/setting.xml`，我们可以指定本地仓库地址(默认~/.m2)：
+### 仓库类型
+
+在maven中存在如下几种类型的仓库：
+
+1. 本地仓库
+2. 远程仓库
+    3. 中央仓库
+    4. 私服仓库
+    5. 公共仓库
+
+maven通过`坐标`查询依赖的时候，优先级别为：
+
+1. 本地仓库
+2. 中央仓库
+3. 其他仓库
+
+### 本地仓库
+
+maven在解析一个坐标的时候，会优先使用`本地仓库`。
+
+通过修改`%M3_HOME%/conf/setting.xml`，我们可以指定本地仓库地址(默认~/.m2)：
+
+```
+<setting>
+    <localRepository>D:\Link\maven\repo\</localRepository>
+</setting>
+```
+
+我们可以看看一个本地仓库的内容是啥，以`junit:junit:4.11`为例：
+
+![maven-repo-files](67C.tmp.jpg)
+
+注意，如果坐标仓库中的`POM.xml#packaging`为aar（android类库），则maven会下载`groupId:artifactId:version.aar`，并非依赖其他插件实现。
+
+### 远程仓库
+
+远程仓库指的是所有非本地仓库。通过在pom.xml中添加如下描述，就可以添加一个远程仓库了：
+
+```
+<project>
+    <!--仓库管理-->
+    <repositories>
+        <!--远程仓库-->
+        <repository>
+            <!--仓库ID-->
+            <id>Sonatype</id>
+            <!--仓库名称-->
+            <name>Sonatype Repository</name>
+            <!--仓库URL-->
+            <url>http://repository.sonatype.org/content/groups/public/</url>
+            <!--仓库布局模式-->
+            <layout>default</layout>
+            <!--是否使用该仓库中的release依赖-->
+            <releases>
+                <enabled>true</enabled>
+            </releases>
+            <!--是否使用该仓库中的snapshots依赖-->
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </repository>
+    </repositories>
+</project>
 
 ```
 
-<localRepository>D:\Link\maven\repo\</localRepository>
+注意：**其中 id 必须唯一，若不唯一，如设置为 central 将覆盖中央仓库的配置。**
+
+
+#### 中央仓库
+
+中央仓库其实就是一个**超级大的默认的远程仓库**。
+
+其预定义在依赖**SUPER_POM**(`%M3_HOME%\maven-model-builder\src\main\resources\org\apache\maven\model\pom-4.0.0.xml`)：
+
+```
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- START SNIPPET: superpom -->
+<project>
+  <modelVersion>4.0.0</modelVersion>
+  <!--依赖的中央仓库-->
+  <repositories>
+    <repository>
+      <!-- ID central 特指中央仓库-->
+      <id>central</id>
+      <name>Central Repository</name>
+      <url>https://repo.maven.apache.org/maven2</url>
+      <layout>default</layout>
+      <snapshots>
+        <enabled>false</enabled>
+      </snapshots>
+    </repository>
+  </repositories>
+  <!--插件的中央仓库-->
+  <pluginRepositories>
+    <pluginRepository>
+      <!-- ID central 特指中央仓库-->
+      <id>central</id>
+      <name>Central Repository</name>
+      <url>https://repo.maven.apache.org/maven2</url>
+      <layout>default</layout>
+      <snapshots>
+        <enabled>false</enabled>
+      </snapshots>
+      <releases>
+        <updatePolicy>never</updatePolicy>
+      </releases>
+    </pluginRepository>
+  </pluginRepositories>
+  <!--默认构建参数-->
+  <build>
+    <directory>${project.basedir}/target</directory>
+    <outputDirectory>${project.build.directory}/classes</outputDirectory>
+    <finalName>${project.artifactId}-${project.version}</finalName>
+    <testOutputDirectory>${project.build.directory}/test-classes</testOutputDirectory>
+    <sourceDirectory>${project.basedir}/src/main/java</sourceDirectory>
+    <scriptSourceDirectory>${project.basedir}/src/main/scripts</scriptSourceDirectory>
+    <testSourceDirectory>${project.basedir}/src/test/java</testSourceDirectory>
+    <resources>
+      <resource>
+        <directory>${project.basedir}/src/main/resources</directory>
+      </resource>
+    </resources>
+    <testResources>
+      <testResource>
+        <directory>${project.basedir}/src/test/resources</directory>
+      </testResource>
+    </testResources>
+    <pluginManagement>
+      <!-- NOTE: These plugins will be removed from future versions of the super POM -->
+      <!-- They are kept for the moment as they are very unlikely to conflict with lifecycle mappings (MNG-4453) -->
+      <plugins>
+        <plugin>
+          <artifactId>maven-antrun-plugin</artifactId>
+          <version>1.3</version>
+        </plugin>
+        <plugin>
+          <artifactId>maven-assembly-plugin</artifactId>
+          <version>2.2-beta-5</version>
+        </plugin>
+        <plugin>
+          <artifactId>maven-dependency-plugin</artifactId>
+          <version>2.8</version>
+        </plugin>
+        <plugin>
+          <artifactId>maven-release-plugin</artifactId>
+          <version>2.3.2</version>
+        </plugin>
+      </plugins>
+    </pluginManagement>
+  </build>
+  ...
+</project>
+<!-- END SNIPPET: superpom -->
 
 ```
 
+可见super pom 提供了一些默认的项目属性。而我们**项目中的pom.xml其实都继承于super pom**。
+
+
+### 镜像
+
+镜像就相当于仓库代理。通过`M3_HOME`/conf/settings.xml，我们就可以配置镜像：
+
+```
+
+<settings>
+    ...
+    <mirrors>
+        <mirror>
+            <!--镜像ID-->
+            <id>jcenter</id>
+            <!--镜像名称-->
+            <name>jcenter</name>
+            <url>https://jcenter.bintray.com/</url>
+            <!--需要代理的仓库ID，如果为 * 则代理所有的仓库-->
+            <mirrorOf>central</mirrorOf>
+        </mirror>
+    </mirrors>
+    ...
+</settings>
+
+```
+
+镜像的工作过程大致如下：
+
+```
+
+        | --> mirror server [mirrorOf:central] --> real repo server(eg. central)
+request |  
+        | --> jcenter repo
+        
+```
+
+相当于，在查询远程仓库的时候流程如下：
+
+1. 先判断要查询的远程仓库是否被`mirror`代理
+2. 如果被代理，则查询`mirror`
+3. 如果没有被代理，则查询real repo.
+
+### 私服
+
+私服，其实就是一个自己搭建的仓库。用来存放一些公司内部的依赖构件。当然了，我们也可以通过私服缓存中央仓库中的构建，加快内网访问。
+
+一个比较经典的架构：
+
+```
+
+                                                    |---> central repo (eg. jcenter)
+                                                    |
+user [mirrorOf:*] -> sf(私有构件，中央仓库缓存构件) |
+                                                    |---> other repo
+
+```
+
+常用的sf工具[sonatype](http://www.sonatype.com/download-oss-sonatype)，通过它，我们就可以快速的搭建一个sf了。
+
+
+## 快照
+
+## 多项目构建
+
+## JavaEE项目
 
 ## 参考
 
-
+* [Maven 快速入门及简单使用](http://www.cnblogs.com/luotaoyeah/p/3764533.html)
+* [Maven 教程](https://ayayui.gitbooks.io/tutorialspoint-maven/content/)
+* [maven中snapshot快照库和release发布库的区别和作用](http://www.mzone.cc/article/277.html)
+* [Maven：mirror和repository 区别](http://my.oschina.net/sunchp/blog/100634)
+* [Maven系列一pom.xml 配置详解](http://www.cnblogs.com/yangxia-test/p/4396159.html)
+* [Maven系列二setting.xml 配置详解](http://www.cnblogs.com/yangxia-test/p/4409736.html)
+* [如何使用Android Studio把自己的Android library分享到jCenter和Maven Central](http://www.open-open.com/lib/view/open1435109824278.html)
+* [Maven和Gradle对比](http://www.huangbowen.net/blog/2016/02/23/gradle-vs-maven/?utm_source=tuicool&utm_medium=referral)
 * [玩转迭代开发](https://github.com/darkfireworld/self-doc/tree/master/玩转迭代开发)
+
+
+
+
+
+
