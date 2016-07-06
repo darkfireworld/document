@@ -530,7 +530,7 @@ request |
 
                                                         |---> central repo (eg. jcenter)
                                                         |
-user [mirrorOf:*] -> sf(私有构件，中央仓库缓存构件) --->|
+user [mirrorOf:*] -> sf(私有构件，中央仓库缓存构件) --->
                                                         |---> other repo
 
 ```
@@ -540,9 +540,373 @@ user [mirrorOf:*] -> sf(私有构件，中央仓库缓存构件) --->|
 
 ## 快照
 
-## 多项目构建
+在开发中，会遇到一个依赖构件每天都在更新且版本号不变的情况（持续构建）。而maven特有的本地仓库机制，不能适应这种情况。
+所以，我们引入了快照(**SNAPSHOT**)的概念：
 
-## JavaEE项目
+> 如果依赖的构建是一个快照版本**（version中使用-SNAPSHOT结尾）**，那么maven在构建的时候，首先会检测该本地仓库缓
+> 存是否失效（一般24小时），如果已经失效，则去远程仓库获取最新的版本。注：`mvn clean package -U` 可以刷新快照。
+
+如何构建一个快照版本的构建呢？其实非常的简单，只要`pom.xml`中设置`version`后面添加**`-SNAPSHOT`**即可。比如说：
+
+```xml
+
+    <version>1.3.0-SNAPSHOT</version>
+    
+```
+
+## 多环境配置
+
+在实际项目中，通常会出现多个运行环境，比如说：本地，测试，正式。不同的环境的参数配置都是不一样的。所以我们需要编写不同的参数配置。通过maven
+的`<profiles>`标签，就可以配置不同的环境属性了。
+
+**项目结构：**
+
+![profiles-project-struct](A313.tmp.jpg)
+
+**POM.xml**
+
+```xml
+
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!--项目的组名-->
+    <groupId>org.darkfireworld</groupId>
+    <!--项目的工程名-->
+    <artifactId>maven</artifactId>
+    <!--项目的版本信息，添加*-SNAPSHOT表示快照版本-->
+    <version>1.0-SNAPSHOT</version>
+    <!--打包方式-->
+    <packaging>jar</packaging>
+
+    <!--依赖组-->
+    <dependencies>
+        <!--依赖-->
+        <dependency>
+            <!--依赖的组名-->
+            <groupId>junit</groupId>
+            <!--依赖的工程名-->
+            <artifactId>junit</artifactId>
+            <!--依赖版本号-->
+            <version>4.11</version>
+        </dependency>
+    </dependencies>
+    <!--环境配置-->
+    <profiles>
+        <!--debug环境-->
+        <profile>
+            <!--ID-->
+            <id>debug</id>
+            <!--属性配置，通过${}引用-->
+            <properties>
+                <!--替换的token，使用${username}引用-->
+                <username>debug</username>
+            </properties>
+            <!--激活属性-->
+            <activation>
+                <!--默认激活-->
+                <activeByDefault>true</activeByDefault>
+            </activation>
+        </profile>
+        <!--release环境-->
+        <profile>
+            <!--ID-->
+            <id>release</id>
+            <!--属性配置，通过${}引用-->
+            <properties>
+                <!--替换的token，使用${username}引用-->
+                <username>release</username>
+            </properties>
+        </profile>
+    </profiles>
+    <!--编译脚本-->
+    <build>
+        <!--处理资源文件-->
+        <resources>
+            <!-- src/main/resources 下所有 xml 文件：需要变量替换 -->
+            <resource>
+                <!--资源目录-->
+                <directory>src/main/resources</directory>
+                <!--开启Token替换-->
+                <filtering>true</filtering>
+                <!--仅仅支持xml替换，所以配置文件统一为*.xml-->
+                <includes>
+                    <include>**/*.xml</include>
+                </includes>
+            </resource>
+            <!-- src/main/resources 下所有非 xml 文件：原样拷贝，不进行变量替换 -->
+            <resource>
+                <!--资源目录-->
+                <directory>src/main/resources</directory>
+                <!--不开启Token替换-->
+                <filtering>false</filtering>
+                <!--所有非xml-->
+                <excludes>
+                    <exclude>**/*.xml</exclude>
+                </excludes>
+            </resource>
+        </resources>
+        <!--插件-->
+        <plugins>
+            <!--编译器设置-->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.1</version>
+                <configuration>
+                    <source>1.6</source>
+                    <target>1.6</target>
+                    <!-- 指定编码格式，否则在DOS下运行mvn compile命令时会出现莫名的错误，因为系统默认使用GBK编码 -->
+                    <encoding>UTF-8</encoding>
+                </configuration>
+            </plugin>
+            <!--资源处理设置-->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-resources-plugin</artifactId>
+                <version>2.6</version>
+                <configuration>
+                    <!-- 指定编码格式，否则在DOS下运行mvn命令时当发生文件资源copy时将使用系统默认使用GBK编码 -->
+                    <encoding>UTF-8</encoding>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>
+
+```
+
+**resources/config.xml**
+
+```xml
+
+<config>
+    ${username}
+</config>
+
+```
+
+
+**resources/META-INF/hello.cc**
+
+```
+
+don't replase token
+
+${username}
+
+```
+
+然后我们运行命令`mvn compile`，就可以发现`target/classes/config.xml`已经被替换为默认debug的${username}->debug。
+而`META-INF/hello.cc`保持${username}。
+
+**注意： 我们可以通过 `mvn compile -P release ` 来指定使用release配置。**
+
+通过`<profiles>`属性，我们可以非常方便的提供不同环境的配置信息。当然了`<profiles>`不仅仅是是这种功能，还有其他功能。
+
+## 多模块构建
+
+在实际开发中，获取会遇到多模块构建的问题，通过maven多模块功能，我们可以实现这种多模块构建。
+
+比如说，我们要实现如下的项目结构：
+
+![multi-module-struct](63D5.tmp.jpg)
+
+### root module
+
+root 相当于一个容器，并且记录一些通用的属性信息，比如说：仓库，通用依赖，build模式等，pom.xml为：
+
+```xml
+
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>org.darkfireworld</groupId>
+    <artifactId>maven-multi-project</artifactId>
+    <version>1.0-SNAPSHOT</version>
+    <!--打包模式为pom-->
+    <packaging>pom</packaging>
+    <!--子模块-->
+    <modules>
+        <module>io</module>
+        <module>biz</module>
+        <module>ctrl</module>
+    </modules>
+
+    <!--编写一些通用的属性，比如说，依赖，仓库，build-->
+    <!--仓库-->
+    <repositories>
+        <repository>
+            <id>central</id>
+            <name>jcenter</name>
+            <url>https://jcenter.bintray.com/</url>
+        </repository>
+    </repositories>
+    <!--通用依赖-->
+    <dependencies>
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>4.11</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+            <version>19.0</version>
+        </dependency>
+    </dependencies>
+
+    <!--通用构建模式-->
+    <build>
+        <!--插件-->
+        <plugins>
+            <!--编译器设置-->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.1</version>
+                <configuration>
+                    <source>1.6</source>
+                    <target>1.6</target>
+                    <!-- 指定编码格式，否则在DOS下运行mvn compile命令时会出现莫名的错误，因为系统默认使用GBK编码 -->
+                    <encoding>UTF-8</encoding>
+                </configuration>
+            </plugin>
+            <!--资源处理设置-->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-resources-plugin</artifactId>
+                <version>2.6</version>
+                <configuration>
+                    <!-- 指定编码格式，否则在DOS下运行mvn命令时当发生文件资源copy时将使用系统默认使用GBK编码 -->
+                    <encoding>UTF-8</encoding>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>
+
+```
+
+**注意配置`packaging`为pom类型。**
+
+### io module
+
+io module 相当于数据接入层，用于和数据库，restful api 交互的层面，pom.xml为:
+
+```xml
+
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <parent>
+        <artifactId>maven-multi-project</artifactId>
+        <groupId>org.darkfireworld</groupId>
+        <version>1.0-SNAPSHOT</version>
+    </parent>
+    <modelVersion>4.0.0</modelVersion>
+
+    <artifactId>io</artifactId>
+    <packaging>jar</packaging>
+
+</project>
+
+```
+
+### biz module
+
+biz module相当于业务处理模块，比如说：发送邮件，定时任务等，pom.xml为：
+
+```
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <parent>
+        <artifactId>maven-multi-project</artifactId>
+        <groupId>org.darkfireworld</groupId>
+        <version>1.0-SNAPSHOT</version>
+    </parent>
+    <modelVersion>4.0.0</modelVersion>
+
+    <artifactId>biz</artifactId>
+    <packaging>jar</packaging>
+    <dependencies>
+        <!--依赖IO模块-->
+        <dependency>
+            <groupId>org.darkfireworld</groupId>
+            <artifactId>io</artifactId>
+            <!--当前项目的版本号-->
+            <version>${project.version}</version>
+        </dependency>
+    </dependencies>
+</project>
+
+```
+
+**注意，因为biz模块需要依赖io模块，所以，我们使用`dependency`来引用io模块，且`<version>${project.version}</version>`。**
+
+### ctrl module
+
+ctrl module 相当于mvc模块，用于接入http请求等，pom.xml为：
+
+```
+
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <parent>
+        <artifactId>maven-multi-project</artifactId>
+        <groupId>org.darkfireworld</groupId>
+        <version>1.0-SNAPSHOT</version>
+    </parent>
+    <modelVersion>4.0.0</modelVersion>
+    <artifactId>ctrl</artifactId>
+    <!--war结构-->
+    <packaging>war</packaging>
+
+    <!--依赖-->
+    <dependencies>
+        <!--biz 模块依赖-->
+        <dependency>
+            <groupId>org.darkfireworld</groupId>
+            <artifactId>biz</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <!--io模块依赖-->
+        <dependency>
+            <groupId>org.darkfireworld</groupId>
+            <artifactId>io</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+    </dependencies>
+    
+</project>
+
+```
+
+**注意，因为ctrl 模块是接入mvc的，所以打包模式为`<packaging>war</packaging>`。**
+
+### 打包多模块
+
+运行命令`mvn package`，我们就可以获取到最终的war包：
+
+![target-war](AF29.tmp.jpg)
+
+解压war查看内容，可以发现是一个标准的war项目，并且已经打包了依赖的 `io，biz` jar包：
+
+![war-lib](8DA7.tmp.jpg)
+
+[项目地址](maven-multi-project.zip)
 
 ## 参考
 
@@ -552,6 +916,10 @@ user [mirrorOf:*] -> sf(私有构件，中央仓库缓存构件) --->|
 * [Maven：mirror和repository 区别](http://my.oschina.net/sunchp/blog/100634)
 * [Maven系列一pom.xml 配置详解](http://www.cnblogs.com/yangxia-test/p/4396159.html)
 * [Maven系列二setting.xml 配置详解](http://www.cnblogs.com/yangxia-test/p/4409736.html)
+* [maven学习（上）- 基本入门用法](http://www.cnblogs.com/yjmyzz/p/3495762.html)
+* [maven学习（中）- 私服nexus搭建](http://www.cnblogs.com/yjmyzz/p/3519373.html)
+* [maven学习（下）利用Profile构建不同环境的部署包](http://www.cnblogs.com/yjmyzz/p/3941043.html)
+* [Maven学习 (六) 搭建多模块企业级项目](http://www.cnblogs.com/quanyongan/archive/2013/05/28/3103243.html)
 * [如何使用Android Studio把自己的Android library分享到jCenter和Maven Central](http://www.open-open.com/lib/view/open1435109824278.html)
 * [Maven和Gradle对比](http://www.huangbowen.net/blog/2016/02/23/gradle-vs-maven/?utm_source=tuicool&utm_medium=referral)
 * [玩转迭代开发](https://github.com/darkfireworld/self-doc/tree/master/玩转迭代开发)
