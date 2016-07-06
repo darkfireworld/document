@@ -16,7 +16,7 @@
 
 ### 配置环境
 
-```
+```shell
 
 set M3_HOME=%~DP0maven
 set JAVA_HOME=%~DP0java
@@ -106,7 +106,7 @@ public class AppTest {
 
 输入命令`mvn test`，我们就可以进行编译，测试了：
 
-```
+```log
 
 [INFO] Scanning for projects...
 [INFO]                                                                         
@@ -197,7 +197,8 @@ Maven的核心文件很小，主要的任务都是由插件来完成。定位到
 
 Maven插件高度易扩展，可以方便的进行自定义配置。如：配置maven-compiler-plugin插件编译源代码的JDK版本为1.6：
 
-```
+```xml
+
 <project>
     ...
     <build>
@@ -288,7 +289,7 @@ Maven的生命周期是抽象的，实际需要插件来完成任务。这一过
 
 这时候，我们可以通过`<properties>`标签来实现统一依赖版本号：
 
-```
+```xml
 
 <project>
     <!--定义一个属性，通过${}来引用-->
@@ -339,10 +340,12 @@ maven在解析一个坐标的时候，会优先使用`本地仓库`。
 
 通过修改`%M3_HOME%/conf/setting.xml`，我们可以指定本地仓库地址(默认~/.m2)：
 
-```
-<setting>
+```xml
+
+<settings>
     <localRepository>D:\Link\maven\repo\</localRepository>
-</setting>
+</settings>
+
 ```
 
 我们可以看看一个本地仓库的内容是啥，以`junit:junit:4.11`为例：
@@ -355,7 +358,7 @@ maven在解析一个坐标的时候，会优先使用`本地仓库`。
 
 远程仓库指的是所有非本地仓库。通过在pom.xml中添加如下描述，就可以添加一个远程仓库了：
 
-```
+```xml
 <project>
     <!--仓库管理-->
     <repositories>
@@ -392,7 +395,7 @@ maven在解析一个坐标的时候，会优先使用`本地仓库`。
 
 其预定义在依赖**SUPER_POM**(`%M3_HOME%\maven-model-builder\src\main\resources\org\apache\maven\model\pom-4.0.0.xml`)：
 
-```
+```xml
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- START SNIPPET: superpom -->
 <project>
@@ -481,7 +484,7 @@ maven在解析一个坐标的时候，会优先使用`本地仓库`。
 
 镜像就相当于仓库代理。通过`M3_HOME`/conf/settings.xml，我们就可以配置镜像：
 
-```
+```xml
 
 <settings>
     ...
@@ -525,10 +528,10 @@ request |
 
 ```
 
-                                                    |---> central repo (eg. jcenter)
-                                                    |
-user [mirrorOf:*] -> sf(私有构件，中央仓库缓存构件) |
-                                                    |---> other repo
+                                                        |---> central repo (eg. jcenter)
+                                                        |
+user [mirrorOf:*] -> sf(私有构件，中央仓库缓存构件) --->|
+                                                        |---> other repo
 
 ```
 
