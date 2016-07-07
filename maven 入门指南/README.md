@@ -1,14 +1,14 @@
 ﻿# maven 入门指南
 
-> Maven项目对象模型(POM)，可以通过一小段描述信息来管理项目的构建，报告和文档的软件项目管理工具。
+Maven项目对象模型(POM)，可以通过一小段描述信息来管理项目的构建，报告和文档的软件项目管理工具。
 
-**一般来说，我们都使用maven来构建（编译，单元测试，打包，发布等）一个项目。**
+**一般来说，我们使用maven来构建（编译，单元测试，打包，发布等）一个项目。**
 
 ## 下载和安装
 
 ### 下载 
 
-首先，去官网下载最新的[maven](http://maven.apache.org/download.cgi)。
+首先，去官网下载最新(v3.x)的[maven](http://maven.apache.org/download.cgi)。
 
 ### 解压
 
@@ -224,6 +224,8 @@ Maven插件高度易扩展，可以方便的进行自定义配置。如：配置
 
 ## 插件和生命周期
 
+### 运行mvn
+
 使用mvn的过程，就是调用一个插件的目标（goals）或者某个阶段（phase）
 
 ![mvn--help](F550.tmp.jpg)
@@ -243,16 +245,15 @@ Maven的生命周期是抽象的，实际需要插件来完成任务。这一过
 
 ## 依赖和坐标
 
-通过maven我们可以管理项目的构建过程。而依赖管理是项目构建最重要的一个点。现在，我们来说说
-`dependency`这个属性。
+通过maven我们可以管理项目的构建过程。而依赖管理是项目构建最重要的一个点。现在，我们来说说`dependency`这个属性。
 
-通过`dependency`来描述一个依赖的`坐标`属性：
+通过`dependency`来描述一个依赖构件的`坐标`属性：
 
-* groupId（必选）：依赖的组名
-* artifactId（必选）：依赖的项目名
-* version(必选)：依赖的版本号
-* type（可选）：依赖的类型，默认是jar。
-* scope(可选)：依赖范围
+* groupId（必选）：依赖构件的组名
+* artifactId（必选）：依赖构件的项目名
+* version(必选)：依赖构件的版本号
+* type（可选）：依赖构件的类型，默认是jar。
+* scope(可选)：依赖构件范围
 
 ### 依赖范围(scope)
 
@@ -275,7 +276,7 @@ Maven的生命周期是抽象的，实际需要插件来完成任务。这一过
 
 ![maven-junit-download](1D9E.tmp.jpg)
 
-然后，读取该依赖的`POM.xml`，发现`junit:junit:4.11`依赖`org.hamcrest:hamcrest-core:1.3`：
+然后，读取该依赖构件的`POM.xml`，发现`junit:junit:4.11`依赖`org.hamcrest:hamcrest-core:1.3`：
 
 ![junit-pom](9426.tmp.jpg)
 
@@ -316,7 +317,7 @@ Maven的生命周期是抽象的，实际需要插件来完成任务。这一过
 ## 仓库和镜像
 
 
-在maven中，通过仓库来管理所有的`依赖(jar,aar,war...)`。而通过`坐标`来引用这些依赖。
+在maven中，通过仓库来管理所有的`构件(jar,aar,war...)`。而通过`坐标`来引用这些构件。
 
 ### 仓库类型
 
@@ -352,7 +353,7 @@ maven在解析一个坐标的时候，会优先使用`本地仓库`。
 
 ![maven-repo-files](67C.tmp.jpg)
 
-注意，如果坐标仓库中的`POM.xml#packaging`为aar（android类库），则maven会下载`groupId:artifactId:version.aar`，并非依赖其他插件实现。
+**注意，如果坐标仓库中的`POM.xml#packaging`为aar（android类库），则maven会下载`groupId:artifactId:version.aar`，并非依赖其他插件实现。**
 
 ### 远程仓库
 
@@ -546,7 +547,7 @@ user [mirrorOf:*] -> sf(私有构件，中央仓库缓存构件) --->
 > 如果依赖的构建是一个快照版本**（version中使用-SNAPSHOT结尾）**，那么maven在构建的时候，首先会检测该本地仓库缓
 > 存是否失效（一般24小时），如果已经失效，则去远程仓库获取最新的版本。注：`mvn clean package -U` 可以刷新快照。
 
-如何构建一个快照版本的构建呢？其实非常的简单，只要`pom.xml`中设置`version`后面添加**`-SNAPSHOT`**即可。比如说：
+如何引用/构建一个快照版本的构建呢？其实非常的简单，只要`pom.xml`中设置`version`后面添加**`-SNAPSHOT`**即可。比如说：
 
 ```xml
 
@@ -907,6 +908,14 @@ ctrl module 相当于mvc模块，用于接入http请求等，pom.xml为：
 ![war-lib](8DA7.tmp.jpg)
 
 项目地址：[maven-multi-project](maven-multi-project.zip)
+
+### JavaEE 项目
+
+maven也支持JavaEE项目，只需要修改`packaging`为war，并且添加/src/main/webapp即可。
+
+![javaee-struct](101A.tmp.jpg)
+
+项目地址：[java-fast-framework](https://github.com/darkfireworld/java-fast-framework.git)
 
 ## 参考
 
