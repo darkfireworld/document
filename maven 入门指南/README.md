@@ -708,6 +708,15 @@ ${username}
 
 通过`<profiles>`属性，我们可以非常方便的提供不同环境的配置信息。当然了`<profiles>`不仅仅是是这种功能，还有其他功能。
 
+
+## JavaEE 项目
+
+maven也支持JavaEE项目，只需要修改`packaging`为war，并且添加/src/main/webapp即可。
+
+![javaee-struct](101A.tmp.jpg)
+
+项目地址：[java-fast-framework](https://github.com/darkfireworld/java-fast-framework.git)
+
 ## 多模块构建
 
 在实际开发中，获取会遇到多模块构建的问题，通过maven多模块功能，我们可以实现这种多模块构建。
@@ -826,7 +835,8 @@ io module 相当于数据接入层，用于和数据库，restful api 交互的�
 
 biz module相当于业务处理模块，比如说：发送邮件，定时任务等，pom.xml为：
 
-```
+```xml
+
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -859,7 +869,7 @@ biz module相当于业务处理模块，比如说：发送邮件，定时任务�
 
 ctrl module 相当于mvc模块，用于接入http请求等，pom.xml为：
 
-```
+```xml
 
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0"
@@ -908,14 +918,6 @@ ctrl module 相当于mvc模块，用于接入http请求等，pom.xml为：
 ![war-lib](8DA7.tmp.jpg)
 
 项目地址：[maven-multi-project](maven-multi-project.zip)
-
-### JavaEE 项目
-
-maven也支持JavaEE项目，只需要修改`packaging`为war，并且添加/src/main/webapp即可。
-
-![javaee-struct](101A.tmp.jpg)
-
-项目地址：[java-fast-framework](https://github.com/darkfireworld/java-fast-framework.git)
 
 ## 参考
 
