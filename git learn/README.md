@@ -310,7 +310,7 @@ versionCode计算公式为：
 
 ![演示截图](00032a8d-ccd6-4124-ad70-6650f1187a9b.jpg)
 
-项目地址：[GIT-AUX](http://git.oschina.net/darkgem/git-aux)
+最新项目地址：[git-tools](https://github.com/darkfireworld/git-tools.git)
 
 ## 参考
 
