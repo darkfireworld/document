@@ -37,11 +37,15 @@
 * tag-v1(.git/refs/tags/tag-v1)：某个tags分支，表示指向一个不可写的commit-id。
 * commit-id：commit-id 其实就是一个commit对象的hash_id数值。
 
-#### 小结
+#### object + ref
 
 ![object+ref](62a65d29-12fe-44cc-8531-51655491ae81.jpg)
 
-通过这张图片，可以非常清晰的看到git的工作机制。通过object来存储版本库信息，通过ref来形成branch，tag等的概念，以及相应的操作。
+通过上图可以发现：
+
+1. `ref` 仅仅是持有一个`commit object的`hash id`.
+2. 每一个`commit object`都持有一个`root tree object`.
+3. 修改后的文件会完整的存储为一个`blob object`，然后被`tree object`引用（test.txt）
 
 ### 工作区和版本库
 
@@ -54,7 +58,7 @@
 
 * git的暂存区相当于最后一次提交的目录拷贝。
 * diff：通过扫描工作区的文件hash和暂存区的各个文件hash数值，就可以知道文件是否发生变化了。
-* add：一旦进行add操作后，暂存区就存储工作区的这个文件到objects中，并且记录相应的hash数值。
+* add：一旦进行add操作后，git会存储工作区的这个文件到`objects/`中，然后更新暂存区中该文件的hash id。
 * reset：reset操作相当于还原暂存区的信息到指定commit版本(默认HEAD)，如果添加`--hard`参数，那么还会整理工作区的文件，如果reset 的版本非HEAD，那么还会修改相应的ref的commit-id。
 * commit: git进行 commit操作，其实就是通过暂存区构建一个`root tree object`，然后关联到`commit object`中。
 
