@@ -353,8 +353,7 @@ maven在解析一个坐标的时候，会优先使用`本地仓库`。
 
 ![maven-repo-files](67C.tmp.jpg)
 
-**注意，如果坐标仓库中的`POM.xml#packaging`为aar（android类库），则maven会下载`groupId:artifactId:version.aar`，并非依赖其他插件实现。
-而其它文件(*-sources.jar , *-javadoc.jar ...)的文件名都是比较固定的。**
+注意：**`mvn`通过`pom.xml#packaging`属性，下载`构件`(.jar .war .aar ...)**
 
 ### 远程仓库
 
