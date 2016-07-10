@@ -353,7 +353,7 @@ maven在解析一个坐标的时候，会优先使用`本地仓库`。
 
 ![maven-repo-files](67C.tmp.jpg)
 
-注意：**对于构件的下载，`mvn`首先会分析构件的`pom#packaging`属性，然后再下载具体的`构件`(.jar .war .aar ...)**
+注意：**上述是一个标准的构件目录(构件，pom，sources，javadoc ...)，而具体构件的类型(.jar .aar .war ...)依赖pom的packaging属性决定。**
 
 ### 远程仓库
 
