@@ -45,7 +45,8 @@
 
 1. `ref` 仅仅是持有一个`commit object`的`hash id`.
 2. 每一个`commit object`都持有一个`root tree object`.
-3. `修改的文件(test.txt)`会完整的存储为一个`blob object`，然后被`tree object`引用
+3. `commit object` 会引用前一个版本的`commit object`。
+4. `修改的文件(test.txt)`会完整的存储为一个`blob object`，然后被`tree object`引用
 
 ### 工作区和版本库
 
