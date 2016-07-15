@@ -83,8 +83,7 @@ response:
 1. `request`的时候，读取`multipart/formdata`和`application/x-www-form-urlencoded`格式的HTTP请求的时候，会
 使用`UTF-8`解析请求参数。
 
-2. `response`的时候，如果该`response`之前**没有被提交且不是WRITE模式**，则可以设置`response`的HTTP报文字符集
-模式为`UTF-8`。
+2. `response`的时候，如果该`response`之前**没有被提交且不是WRITE模式**，则可以指定Client使用UTF-8解析HTTP报文。
 
 注：`UTF-8`编码仅仅针对`文本内容`的HTTP报文。
 
