@@ -19,7 +19,8 @@ default-character-set=utf8
 
 ## JDBC
 
-在使用`JDBC`连接MySQL的时候，也需要注意连接的字符集为`UTF-8`。这样子，`MySQL JDBC Driver`能正常的识别编码：
+在使用`JDBC`连接MySQL的时候，也需要指定连接的字符集为`UTF-8`。这样子，`MySQL JDBC Driver`才能正常
+地识别编码：
 
 ```
 
