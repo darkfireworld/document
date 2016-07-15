@@ -82,7 +82,7 @@ response:
 1. `request`的时候，读取`multipart/formdata`和`application/x-www-form-urlencoded`格式的HTTP请求的时候，会
 使用`UTF-8`解析请求参数。
 
-2. `response`的时候，如果该`response`之前没有被**提交且不是WRITE模式**，则可以设置`response`的HTTP报文字符集
+2. `response`的时候，如果该`response`之前**没有被提交且不是WRITE模式**，则可以设置`response`的HTTP报文字符集
 模式为`UTF-8`。
 
 注：`UTF-8`编码仅仅针对`文本内容`的HTTP报文。
@@ -97,7 +97,7 @@ response:
     <Connector port="8080" protocol="HTTP/1.1" connectionTimeout="20000" redirectPort="8443" URIEncoding="UTF-8" />
 ```
 
-注意：参数一般不建议在URL中传递。
+注意：URL中一般不传递参数。
 
 ## 总结
 
