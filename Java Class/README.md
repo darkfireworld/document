@@ -210,6 +210,96 @@ construct
 
 注意：这里的`类block`和`函数block`不同。`函数block`提供了一种可以`break`的作用域。
 
+# Java 继承
+
+## 构造函数
+
+`构造函数`是一种特殊的`function`。通过`构造函数`，可以构造出一个对象。它有如下特性：
+
+1. 一个类至少需要一个构造函数，如果没有，则会添加一个`默认构造函数`。
+2. 在构造函数中，通过`this(args)`调用同类的不同构造函数，通过`super(args)`调用父类的构造函数。
+3. 父类的构造器调用以及初始化过程一定在子类的前面。
+
+```java
+
+public class App {
+    public static void main(String[] args) {
+        A a = new B();
+    }
+
+    static class A {
+
+        public A(String none) {
+            System.out.println("CONSTRUCT A");
+        }
+    }
+
+    static class B extends A {
+        public B() {
+            this("TEST");
+        }
+
+        B(String none) {
+            super(none);
+            System.out.println("CONSTRUCT B");
+        }
+    }
+}
+
+```
+
+运行结果：
+
+```
+CONSTRUCT A
+CONSTRUCT B
+PRINTLN B
+
+```
+
+## 覆盖
+
+在Java中，类的继承能非常方便的实现多态中的覆盖（另外一个叫做重载）：
+
+```java
+
+public class App {
+    public static void main(String[] args) {
+        A a = new B();
+        a.say();
+    }
+
+    static class A {
+        void say(){
+            System.out.println("A");
+        }
+    }
+
+    static class B extends A {
+        void say(){
+            System.out.println("B");
+        }
+    }
+}
+
+```
+
+结果：
+
+```
+B
+```
+
+Java的覆盖具有如下特点：
+
+1. 覆盖仅仅针对`非static`和`非final`的方法和属性。
+2. 在子类中可以通过`super.method()`和`super.field`来调用父类中的方法和属性。
+3. 覆盖和类的访问属性相关。
+
+## 抽象类和接口
+
+在Java中，可以通过`abstract class`或者`interface`来定义抽象方法(包括`构造函数`)和属性。
+
 # Java class 编码
 
 Java是一种跨平台的语言，这注定了JVM能适应各种平台的编码环境。当今只有UNICODE能包含各种文字，而UTF-8编码能解决大小端问题，
