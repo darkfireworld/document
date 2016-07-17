@@ -150,7 +150,7 @@ Main.java
 
 一个Java类是通过`ClassLoader`加载进入JVM虚拟机运行的，此时会：
 
-1. 初始化所有`static 属性`
+1. 初始化所有static属性
 2. 调用`static block`代码块
 
 一旦Class被加载进入虚拟机，则它的生命周期会跟随`ClassLoader`。
@@ -160,7 +160,7 @@ Main.java
 当获取一个Object的时候，会发生如下过程：
 
 1. 初始化类属性
-2. 调用block代码块
+2. 调用`block`代码块
 3. 调用构造函数（子类->父类）
 
 ## 测试
