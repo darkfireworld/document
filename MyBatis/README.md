@@ -254,4 +254,337 @@ ID=2，CONTENT=文章2
 
 可以发现，已经成功的读取到数据库中的数据到JavaBean中了。
 
-##
+项目地址：[simple-mybatis-project](simple-mybatis-project.zip)
+
+## mybatis-spring
+
+在使用MyBatis的时候，通常是和Spring框架一起使用的。MyBatis和Spring的集成是非常方便的，只需要几个步骤即可。
+
+### 项目结构
+
+![](AFA7.tmp.jpg)
+
+### 安装
+
+首先，我们需要引入最新的mybatis-spring的jar包：
+
+```
+<!--mybatis-spring -->
+<dependency>
+    <groupId>org.mybatis</groupId>
+    <artifactId>mybatis-spring</artifactId>
+    <version>1.3.0</version>
+</dependency>
+```
+
+### 配置
+
+mybatis和spring集成的时候，我们就不需要MyBatis的配置文件(configuration.xmk)了，只需要在Spring
+的配置文件中，引入MyBatis#SqlSessionFactorty的Bean配置即可，如下是比较完成的配置：
+
+```
+    <!--注意，这里还需要添加dataSource-->
+    <!--事务性-->
+    <bean id="transactionManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+        <property name="dataSource" ref="dataSource"/>
+    </bean>
+    <!--mybatis -->
+    <bean id="sqlSessionFactory" class="org.mybatis.spring.SqlSessionFactoryBean">
+        <!--注入dataSource-->
+        <property name="dataSource" ref="dataSource" />
+        <--扫描org.darkgem.io下面的所有TypeHandler-->
+        <property name="typeHandlersPackage" value="org.darkgem.io"/>
+    </bean>
+    <!--mapper-scan-->
+    <bean class="org.mybatis.spring.mapper.MapperScannerConfigurer">
+        <!--扫描所有org.darkgem.io下面的Mapper接口-->
+        <property name="basePackage" value="org.darkgem.io" />
+    </bean>
+```
+
+这样子，就配置了MyBatis。
+
+### Bean + Mapper
+
+如下是MyBatis的Bean以及相应的Mapper和SQL Mapper：
+
+```
+
+
+/**
+ * Article.java
+ */
+package org.darkgem.io.article;
+
+public class Article {
+    String id;
+    String content;
+    Type type;
+
+    public Article(String id, String content, Type type) {
+        this.id = id;
+        this.content = content;
+        this.type = type;
+    }
+
+    public String getId() {
+        return id;
+    }
+
+    public void setId(String id) {
+        this.id = id;
+    }
+
+    public String getContent() {
+        return content;
+    }
+
+    public void setContent(String content) {
+        this.content = content;
+    }
+
+    public Type getType() {
+        return type;
+    }
+
+    public void setType(Type type) {
+        this.type = type;
+    }
+
+    public enum Type {
+        IT,
+        LIFT;
+    }
+}
+
+
+
+/**
+ * ArticleMapper.java
+ */
+
+package org.darkgem.io.article;
+
+import org.apache.ibatis.annotations.Param;
+import org.apache.ibatis.type.JdbcType;
+import org.apache.ibatis.type.MappedTypes;
+import org.apache.ibatis.type.TypeHandler;
+
+import java.sql.CallableStatement;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.List;
+
+
+public interface ArticleMapper {
+
+    List<Article> selectList(@Param("content") String content, @Param("type") Article.Type type);
+
+    /**
+     * 类型转换
+     */
+    @MappedTypes(Article.Type.class)
+    class ArticleTypeHandler implements TypeHandler<Article.Type> {
+        @Override
+        public void setParameter(PreparedStatement ps, int i, Article.Type parameter, JdbcType jdbcType) throws SQLException {
+            ps.setString(i, parameter.toString());
+        }
+
+        @Override
+        public Article.Type getResult(ResultSet rs, String columnName) throws SQLException {
+            return Article.Type.valueOf(rs.getString(columnName));
+        }
+
+        @Override
+        public Article.Type getResult(ResultSet rs, int columnIndex) throws SQLException {
+            return Article.Type.valueOf(rs.getString(columnIndex));
+        }
+
+        @Override
+        public Article.Type getResult(CallableStatement cs, int columnIndex) throws SQLException {
+            return Article.Type.valueOf(cs.getString(columnIndex));
+        }
+    }
+}
+
+
+<!--ArticleMapper.xml-->
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.darkgem.io.article.ArticleMapper">
+
+    <sql id="columns">
+        id,content,type
+    </sql>
+
+    <resultMap id="resultArticle" type="org.darkgem.io.article.Article">
+        <constructor>
+            <idArg column="id" javaType="String"/>
+            <arg column="content" javaType="String"/>
+            <arg column="type" javaType="org.darkgem.io.article.Article$Type"/>
+        </constructor>
+    </resultMap>
+    <select id="selectList" resultMap="resultArticle">
+        SELECT
+            <include refid="columns"/>
+        FROM
+            t_article
+        WHERE
+            content like #{content} and type = #{type}
+    </select>
+</mapper>
+
+
+
+/**
+ * ArticleIo.java
+ */
+package org.darkgem.io.article;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+
+import java.util.List;
+
+@Component
+public class ArticleIo {
+
+    //这里直接引入Mapper进行调用，它是线程安全的
+    @Autowired
+    ArticleMapper articleMapper;
+
+    public List<Article> selectList(String key, Article.Type type) {
+        return articleMapper.selectList('%' + key + '%', type);
+    }
+}
+
+
+
+```
+
+注意，在`ArticleMapper.java`中，我们配置了关于Article中Type这个`枚举`类型的处理器。
+通过TypeHandler，我们可以完成Java和Jdbc类型的转换。
+
+### Controller
+
+现在，来配置一下Spring MVC 调用MyBatis的代码：
+
+
+```java
+
+package org.darkgem.web.mvc.main;
+
+import org.darkgem.io.article.Article;
+import org.darkgem.io.article.ArticleIo;
+import org.darkgem.web.support.handler.Token;
+import org.darkgem.web.support.msg.Message;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Controller;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.bind.annotation.RequestMapping;
+
+@Controller
+@RequestMapping("/main/MainCtrl")
+public class MainCtrl {
+    @Autowired
+    ArticleIo articleIo;
+
+    @Transactional
+    @RequestMapping("/ask")
+    public Object ask(@Token String token) {
+        return Message.okMessage(articleIo.selectList(token, Article.Type.IT));
+    }
+}
+
+```
+
+### 运行
+
+
+截图：
+
+![](C616.tmp.jpg)
+
+日志：
+
+```
+
+2016-07-18 12:08:23.606 [qtp6566818-15] DEBUG o.s.web.servlet.DispatcherServlet - DispatcherServlet with name 'springMVC' processing GET request for [/main/MainCtrl/ask.do]
+2016-07-18 12:08:23.607 [qtp6566818-15] DEBUG o.s.w.s.m.m.a.RequestMappingHandlerMapping - Looking up handler method for path /main/MainCtrl/ask.do
+2016-07-18 12:08:23.608 [qtp6566818-15] DEBUG o.s.w.s.m.m.a.RequestMappingHandlerMapping - Returning handler method [public java.lang.Object org.darkgem.web.mvc.main.MainCtrl.ask(java.lang.String)]
+2016-07-18 12:08:23.608 [qtp6566818-15] DEBUG o.s.b.f.s.DefaultListableBeanFactory - Returning cached instance of singleton bean 'mainCtrl'
+2016-07-18 12:08:23.608 [qtp6566818-15] DEBUG o.s.web.servlet.DispatcherServlet - Last-Modified value for [/main/MainCtrl/ask.do] is: -1
+2016-07-18 12:08:23.609 [qtp6566818-15] DEBUG o.s.j.d.DataSourceTransactionManager - Creating new transaction with name [org.darkgem.web.mvc.main.MainCtrl.ask]: PROPAGATION_REQUIRED,ISOLATION_DEFAULT; ''
+2016-07-18 12:08:23.609 [qtp6566818-15] DEBUG druid.sql.Statement - {conn-10005, stmt-20007} created
+2016-07-18 12:08:23.611 [qtp6566818-15] DEBUG druid.sql.Statement - {conn-10005, stmt-20007, rs-50007} query executed. 0.692501 millis. 
+SELECT 'x'
+2016-07-18 12:08:23.611 [qtp6566818-15] DEBUG druid.sql.ResultSet - {conn-10005, stmt-20007, rs-50007} open
+2016-07-18 12:08:23.611 [qtp6566818-15] DEBUG druid.sql.ResultSet - {conn-10005, stmt-20007, rs-50007} Header: [x]
+2016-07-18 12:08:23.611 [qtp6566818-15] DEBUG druid.sql.ResultSet - {conn-10005, stmt-20007, rs-50007} closed
+2016-07-18 12:08:23.612 [qtp6566818-15] DEBUG druid.sql.Statement - {conn-10005, stmt-20007} closed
+2016-07-18 12:08:23.612 [qtp6566818-15] DEBUG druid.sql.Connection - {conn-10005} pool-connect
+2016-07-18 12:08:23.612 [qtp6566818-15] DEBUG o.s.j.d.DataSourceTransactionManager - Acquired Connection [com.alibaba.druid.proxy.jdbc.ConnectionProxyImpl@213795f2] for JDBC transaction
+2016-07-18 12:08:23.612 [qtp6566818-15] DEBUG o.s.j.d.DataSourceTransactionManager - Switching JDBC Connection [com.alibaba.druid.proxy.jdbc.ConnectionProxyImpl@213795f2] to manual commit
+2016-07-18 12:08:23.612 [qtp6566818-15] DEBUG druid.sql.Connection - {conn-10005} setAutoCommit false
+2016-07-18 12:08:23.614 [qtp6566818-15] DEBUG org.mybatis.spring.SqlSessionUtils - Creating a new SqlSession
+2016-07-18 12:08:23.614 [qtp6566818-15] DEBUG org.mybatis.spring.SqlSessionUtils - Registering transaction synchronization for SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@669462bf]
+2016-07-18 12:08:23.614 [qtp6566818-15] DEBUG o.m.s.t.SpringManagedTransaction - JDBC Connection [com.alibaba.druid.proxy.jdbc.ConnectionProxyImpl@213795f2] will be managed by Spring
+2016-07-18 12:08:23.614 [qtp6566818-15] DEBUG o.d.i.a.ArticleMapper.selectList - ==>  Preparing: SELECT id,content,type FROM t_article WHERE content like ? and type = ? 
+2016-07-18 12:08:23.615 [qtp6566818-15] DEBUG druid.sql.Statement - {conn-10005, pstmt-20008} created. 
+SELECT
+             
+        id,content,type
+     
+        FROM
+            t_article
+        WHERE
+            content like ? and type = ?
+2016-07-18 12:08:23.615 [qtp6566818-15] DEBUG o.d.i.a.ArticleMapper.selectList - ==> Parameters: %1%(String), IT(String)
+2016-07-18 12:08:23.615 [qtp6566818-15] DEBUG druid.sql.Statement - {conn-10005, pstmt-20008} Parameters : [%1%, IT]
+2016-07-18 12:08:23.615 [qtp6566818-15] DEBUG druid.sql.Statement - {conn-10005, pstmt-20008} Types : [VARCHAR, VARCHAR]
+2016-07-18 12:08:23.619 [qtp6566818-15] DEBUG druid.sql.Statement - {conn-10005, pstmt-20008} executed. 3.417743 millis. 
+SELECT
+             
+        id,content,type
+     
+        FROM
+            t_article
+        WHERE
+            content like ? and type = ?
+2016-07-18 12:08:23.619 [qtp6566818-15] DEBUG druid.sql.ResultSet - {conn-10005, pstmt-20008, rs-50008} open
+2016-07-18 12:08:23.619 [qtp6566818-15] DEBUG druid.sql.ResultSet - {conn-10005, pstmt-20008, rs-50008} Header: [id, content, type]
+2016-07-18 12:08:23.619 [qtp6566818-15] DEBUG druid.sql.ResultSet - {conn-10005, pstmt-20008, rs-50008} Result: [1, 文章1, IT]
+2016-07-18 12:08:23.620 [qtp6566818-15] DEBUG o.d.i.a.ArticleMapper.selectList - <==      Total: 1
+2016-07-18 12:08:23.621 [qtp6566818-15] DEBUG druid.sql.ResultSet - {conn-10005, pstmt-20008, rs-50008} closed
+2016-07-18 12:08:23.622 [qtp6566818-15] DEBUG druid.sql.Statement - {conn-10005, pstmt-20008} closed
+2016-07-18 12:08:23.622 [qtp6566818-15] DEBUG org.mybatis.spring.SqlSessionUtils - Releasing transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@669462bf]
+2016-07-18 12:08:23.622 [qtp6566818-15] DEBUG org.mybatis.spring.SqlSessionUtils - Transaction synchronization committing SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@669462bf]
+2016-07-18 12:08:23.622 [qtp6566818-15] DEBUG org.mybatis.spring.SqlSessionUtils - Transaction synchronization deregistering SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@669462bf]
+2016-07-18 12:08:23.622 [qtp6566818-15] DEBUG org.mybatis.spring.SqlSessionUtils - Transaction synchronization closing SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@669462bf]
+2016-07-18 12:08:23.622 [qtp6566818-15] DEBUG o.s.j.d.DataSourceTransactionManager - Initiating transaction commit
+2016-07-18 12:08:23.622 [qtp6566818-15] DEBUG o.s.j.d.DataSourceTransactionManager - Committing JDBC transaction on Connection [com.alibaba.druid.proxy.jdbc.ConnectionProxyImpl@213795f2]
+2016-07-18 12:08:23.624 [qtp6566818-15] DEBUG druid.sql.Connection - {conn-10005} commited
+2016-07-18 12:08:23.624 [qtp6566818-15] DEBUG druid.sql.Connection - {conn-10005} setAutoCommit true
+2016-07-18 12:08:23.625 [qtp6566818-15] DEBUG o.s.j.d.DataSourceTransactionManager - Releasing JDBC Connection [com.alibaba.druid.proxy.jdbc.ConnectionProxyImpl@213795f2] after transaction
+2016-07-18 12:08:23.625 [qtp6566818-15] DEBUG o.s.jdbc.datasource.DataSourceUtils - Returning JDBC Connection to DataSource
+2016-07-18 12:08:23.625 [qtp6566818-15] DEBUG druid.sql.Connection - {conn-10005} pool-recycle
+2016-07-18 12:08:23.626 [qtp6566818-15] DEBUG o.s.w.s.v.ContentNegotiatingViewResolver - Requested media types are [text/html, application/xhtml+xml, image/webp, application/xml;q=0.9, */*;q=0.8] based on Accept header types and producible media types [*/*])
+2016-07-18 12:08:23.627 [qtp6566818-15] DEBUG o.s.w.s.v.ContentNegotiatingViewResolver - Returning [com.alibaba.fastjson.support.spring.FastJsonJsonView: name 'com.alibaba.fastjson.support.spring.FastJsonJsonView#35aea049'] based on requested media type '*/*;q=0.8'
+2016-07-18 12:08:23.627 [qtp6566818-15] DEBUG o.s.web.servlet.DispatcherServlet - Rendering view [com.alibaba.fastjson.support.spring.FastJsonJsonView: name 'com.alibaba.fastjson.support.spring.FastJsonJsonView#35aea049'] in DispatcherServlet with name 'springMVC'
+2016-07-18 12:08:23.627 [qtp6566818-15] DEBUG o.s.web.servlet.DispatcherServlet - Successfully completed request
+
+
+```
+
+可以发现，MyBatis已经和Spring集成成功。
+
+项目地址：[java-fast-framework](https://github.com/darkfireworld/java-fast-framework.git)
+
+
+## 参考
+
+* [mybatis](http://www.mybatis.org/mybatis-3/zh/index.html)
+* [mybatis-spring](http://www.mybatis.org/spring/zh/index.html)
