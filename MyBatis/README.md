@@ -3,7 +3,7 @@
 MyBatis 是支持定制化 SQL、存储过程以及高级映射的优秀的持久层框架。MyBatis 避免了几乎所有的 JDBC 代码和手动设置参数以及获取结果集。
 MyBatis 可以对配置和原生Map使用简单的 XML 或注解，将接口和 Java 的 POJOs(Plain Old Java Objects,普通的 Java对象)映射成数据库中的记录。
 
-## 入门
+## 基础入门
 
 ### 项目结构
 
@@ -256,7 +256,7 @@ ID=2，CONTENT=文章2
 
 项目地址：[simple-mybatis-project](simple-mybatis-project.zip)
 
-## mybatis-spring
+## Spring集成
 
 在使用MyBatis的时候，通常是和Spring框架一起使用的。MyBatis和Spring的集成是非常方便的，只需要几个步骤即可。
 
