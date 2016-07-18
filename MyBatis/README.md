@@ -586,7 +586,7 @@ SELECT
 
 # 命名空间
 
-通过Mapper#namespace属性，我们可以定一个Mapper的命名空间。命名控件的好处有很多，比如说：ID隔离等。
+在MyBatis中，Mapper强制使用命名空间。使用命名空间有利于隔离Mapper。
 
 如下是一个`Mapper Interface + Mapper XML`的实践：
 
@@ -646,7 +646,7 @@ public interface ArticleMapper {
 
 在使用MyBatis的时候，我们需要关注各个关键组件的生命周期，这样子才能编写出线程安全的代码。
 
-> `依赖注入框架`可以创建线程安全的、基于事务的 SqlSession 和映射器（mapper）并将它们直接
+> `依赖注入框架(Spring)`可以创建线程安全的、基于事务的 SqlSession 和映射器（mapper）并将它们直接
 > 注入到你的 bean 中，因此可以直接忽略它们的生命周期。如果对如何通过依赖注入框架来使
 > 用 MyBatis 感兴趣可以研究一下 `MyBatis-Spring` 或 `MyBatis-Guice` 两个子项目。
 
