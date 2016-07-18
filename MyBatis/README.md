@@ -715,13 +715,9 @@ try {
 
 ## Initialization
 
-本小节，将会梳理一下MyBatis的初始化过程中，几个重要的阶段：
+本小节，将会梳理一下MyBatis的初始化过程中，几个重要的概念。
 
-1. Configuare
-2. TypeHandler
-3. Mapper
-
-### Configuare
+### configuration
 
 MyBatis可以通过`XML`或者`Java代码`配置`SqlSessionFactory`这个核心对象。
 
@@ -734,44 +730,51 @@ MyBatis可以通过`XML`或者`Java代码`配置`SqlSessionFactory`这个核心�
 
 保持一致，否则MyBatis会报错。
 
-#### properties(定义属性)
+### properties(定义属性)
 
-配置文件中，预定义一些属性，然后通过`${}`引用这些属性。
+在配置文件中，预定义一些属性，然后通过`${}`引用这些属性。
 
-#### settings(基础设置)
+### settings(基础设置)
 
 配置mybatis的基本功能，比如说`二级缓存`，`lazy load`...
 
-#### typeAliases (别名配置)
+### typeAliases (别名配置)
 
-MyBatis使用别名的过程如下：
+MyBatis使用别名的过程如下(`TypeAliasRegistry#resolveAlias`)：
 
-1. Mapper.xml中给定Type='org.darkfireworld.Model'
-2. MyBatis首先对比`typeAliasesMap`中是否存在`org.darkfireworld.model`这个别名[忽略大小写]。
-3. 如果存在，则返回。否则调用`Class.forName()`解析。
+1. Mapper.xml中给定TypeName='org.darkfireworld.Model'
+2. MyBatis首先对比`typeAliasesMap`中是否存在`org.darkfireworld.model`这个别名[忽略大小写]所对应的Class。
+3. 如果存在，则返回该Class，否则调用`Class.forName()`解析TypeName，然后获取具体的Class。
 
 注意：如果为内部类，则需要使用`org.darkfireworld.Model$Type`引用。
 
 当然，MyBatis已经预定义了一些比较常见的别名：`hashmap`,`list`,`int`...
 
-
-
-#### typeHandlers(类型处理器)
+### typeHandlers(类型处理器)
 
 无论是 MyBatis 在预处理语句（PreparedStatement）中设置一个参数时，还是从结果集中取出一个
 值时， 都会用类型处理器将获取的值以合适的方式转换成 Java 类型。
 
-通过`typeHandlers`，可以配置Java<->Jdbc类型转换器。MyBatis已经预定义了一些`TypeHandler`：
+通过`typeHandlers`，可以配置Java<->Jdbc类型转换器。所以，MyBatis调用`TypeHandler`的时机为：
+
+1. SQL参数bind
+2. resultMap参数处理。
+
+在MyBatis已经预定义了一些`TypeHandler`：
 
 1. Boolean
 2. String
 3. Integer
 4. Long
 5. Date
+6. ...
 
 基本上，常见的Java类型的Handler都已经有了。
 
-但是有时候，我们也需要自定义一些`TypeHander`。首先，我们定一个`TypeHandler`：
+注意：针对`枚举类型`，其实MyBatis也提供了默认的枚举处理器`EnumTypeHandler`，这个枚举处理器支持
+Enum.name() 和 Enum.valueOf()转换。
+
+有时候，我们也需要自定义一些`TypeHander`。首先，我们定一个`TypeHandler`：
 
 ```java
 
@@ -826,8 +829,65 @@ public class MyTypeHandler implements TypeHandler<MyType> {
 
 ```
 
-这样子，MyBatis在处理`MyType`的时候，就可以通过`MyTypeHandler`处理参数或者结果了。
+通过自定义`TypeHandler`，我们可以优雅的处理类型转换的问题，比如说：
+`MySQL enum('TRUE','FALSE')<-> Java Boolean `的转换。
 
+
+接下来，来分析一下`TypeHandlerRegistry`，这个TypeHandler注册类。`TypeHandlerRegistry`主要
+实现了两个功能：
+
+1. 注册具体的`TypeHandler`。
+2. 通过JavaType和JdbcType获取具体的`TypeHandler`。
+
+**注册流程如下(扫描报名类型)：**
+
+```
+
+scan-pack 
+    |
+register Class , which implements TypeHandler Interface
+    |
+read @MappedTypes ,if unset then set JavaType is null
+    |
+read @MappedJdbcTypes, if unset the set JdbcType is null
+    |
+register Instance to TYPE_HANDLER_MAP<JavaType,JdbcType>
+
+```
+
+所以，我们需要注意设置@MappedTypes属性，避免MyBatis在Java<->Jdbc转换的时候，
+无法查询到相应的`TypeHandler`。
+
+**获取具体的TypeHandler流程如下：**
+
+```
+
+private <T> TypeHandler<T> getTypeHandler(Type type, JdbcType jdbcType) {
+    //读取TYPE_HANDLER_MAP中的handler，注意如果type=null，
+    //则无法读取，因为根本不能注册null这个类型
+    Map<JdbcType, TypeHandler<?>> jdbcHandlerMap = TYPE_HANDLER_MAP.get(type);
+    TypeHandler<?> handler = null;
+    if (jdbcHandlerMap != null) {
+        //查询到存在JavaType指向的HandlerMaper，进一步确认支持的JdbcType
+        handler = jdbcHandlerMap.get(jdbcType);
+        if (handler == null) {
+            handler = jdbcHandlerMap.get(null);
+        }
+        if (handler == null) {
+            // #591
+            handler = pickSoleHandler(jdbcHandlerMap);
+        }
+    }
+    //如果无法查询到，则判断是否为枚举类型，如果是的话，则使用默认的枚举处理器处理。
+    if (handler == null && type != null && type instanceof Class && Enum.class.isAssignableFrom((Class<?>) type)) {
+        handler = new EnumTypeHandler((Class<?>) type);
+    }
+    // type drives generics here
+    return (TypeHandler<T>) handler;
+}
+```
+
+`TypeHandlerRegistry`就是MyBatis的`TypeHandler`注册中心。
 
 
 #### environments(环境配置)
@@ -854,7 +914,7 @@ public class MyTypeHandler implements TypeHandler<MyType> {
 ```
 
 
-#### mappers(映射器)
+### mappers(映射器)
 
 Mapper是MyBatis的关键概念，通过Mapper，可以将Java和Jdbc以及Sql结合起来。Mapper的注册通常有如下几种方式：
 
@@ -864,16 +924,9 @@ Mapper是MyBatis的关键概念，通过Mapper，可以将Java和Jdbc以及Sql�
 
 通常，我们使用第三种，可以节约许多工作量。
 
-### TypeHandler
-
-
-handler process : scan package ，touch ALL Handler implements TypeHandler ，获取 该类的 @MappedTypes 以及@MappedJdbcTypes 属性，注册到TypeHandlerRegister中.
-
-mybatis-mysql: boolean  tinyint(1) 0 : 1 可以自定义
-
-
-
 ### Mapper
+
+对于Mapper的处理，
 
 init process: <mapper> -> package name -> register interface + interface.class.getName().xml（namespace一定要为 interface.class.getName ）  + 注解
 
@@ -881,6 +934,12 @@ init process: <mapper> -> package name -> register interface + interface.class.g
 
 最佳实践：
     Java内部使用全属性构造器，MyBatis使用无参数构造器+set
+
+    
+    
+    
+    
+    
 
 ### Spring
 
