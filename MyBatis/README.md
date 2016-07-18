@@ -1,7 +1,8 @@
-﻿# MyBatis
+﻿# 示例
 
 MyBatis 是支持定制化 SQL、存储过程以及高级映射的优秀的持久层框架。MyBatis 避免了几乎所有的 JDBC 代码和手动设置参数以及获取结果集。
 MyBatis 可以对配置和原生Map使用简单的 XML 或注解，将接口和 Java 的 POJOs(Plain Old Java Objects,普通的 Java对象)映射成数据库中的记录。
+
 
 ## 基础入门
 
@@ -582,6 +583,358 @@ SELECT
 可以发现，MyBatis已经和Spring集成成功。
 
 项目地址：[java-fast-framework](https://github.com/darkfireworld/java-fast-framework.git)
+
+# 命名空间
+
+通过Mapper#namespace属性，我们可以定一个Mapper的命名空间。命名控件的好处有很多，比如说：ID隔离等。
+
+如下是一个`Mapper Interface + Mapper XML`的实践：
+
+代码结构：
+
+![](3A83.tmp.jpg)
+
+我们在`Mapper Interface` (ArticleMapper.java)中定义使用的API，以及参数名称：
+
+```java
+public interface ArticleMapper {
+
+    List<Article> selectList(@Param("content") String content, @Param("type") Article.Type type);
+}
+
+
+```
+
+而在`Mapper XML(`ArticleMapper.xml)中定义具体的SQL语句，注意该XML的命名需要
+和`Mapper Interface`一致：
+
+```xml
+
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!--命名空间需要和ArticleMapper.java的限定名一致-->
+<mapper namespace="org.darkgem.io.article.ArticleMapper">
+
+    <sql id="columns">
+        id,content
+    </sql>
+
+    <resultMap id="resultArticle" type="org.darkgem.io.article.Article">
+        <constructor>
+            <idArg column="id" javaType="String"/>
+            <arg column="content" javaType="String"/>
+        </constructor>
+    </resultMap>
+    <select id="selectList" resultMap="resultArticle">
+        SELECT
+            <include refid="columns"/>
+        FROM
+            t_article
+        WHERE
+            content like #{content}
+    </select>
+</mapper>
+
+```
+
+注意，Mapper元素的命名空间需要和ArticleMapper.class的限定名一致。
+
+# 生命周期
+
+在使用MyBatis的时候，我们需要关注各个关键组件的生命周期，这样子才能编写出线程安全的代码。
+
+> `依赖注入框架`可以创建线程安全的、基于事务的 SqlSession 和映射器（mapper）并将它们直接
+> 注入到你的 bean 中，因此可以直接忽略它们的生命周期。如果对如何通过依赖注入框架来使
+> 用 MyBatis 感兴趣可以研究一下 `MyBatis-Spring` 或 `MyBatis-Guice` 两个子项目。
+
+## SqlSessionFactoryBuilder
+
+这个类可以被实例化、使用和丢弃，一旦创建了 SqlSessionFactory，就不再需要它了。因此 
+SqlSessionFactoryBuilder 实例的最佳范围是方法范围（也就是局部方法变量）。你可以重
+用 SqlSessionFactoryBuilder 来创建多个 SqlSessionFactory 实例，但是最好还是不要让
+其一直存在以保证所有的 XML 解析资源开放给更重要的事情。
+
+## SqlSessionFactory
+
+SqlSessionFactory 一旦被创建就应该在应用的运行期间一直存在，没有任何理由对它进行清除或重
+建。使用 SqlSessionFactory 的最佳实践是在应用运行期间不要重复创建多次，多次重建 
+SqlSessionFactory 被视为一种代码“坏味道（bad smell）”。因此 SqlSessionFactory 的最佳范围
+是应用范围。有很多方法可以做到，最简单的就是使用单例模式或者静态单例模式。
+
+## SqlSession
+
+每个线程都应该有它自己的 SqlSession 实例。SqlSession 的实例不是线程安全的，因此是不能
+被共享的，所以它的最佳的范围是请求或方法范围。绝对不能将 SqlSession 实例的引用放在一
+个类的静态域，甚至一个类的实例变量也不行。也绝不能将 SqlSession 实例的引用放在任何类型
+的管理范围中，比如 Serlvet 架构中的 HttpSession。如果你现在正在使用一种 Web 框架，要考
+虑 SqlSession 放在一个和 HTTP 请求对象相似的范围中。换句话说，每次收到的 HTTP 请求，就
+可以打开一个 SqlSession，返回一个响应，就关闭它。这个关闭操作是很重要的，你应该把这个
+关闭操作放到 finally 块中以确保每次都能执行关闭。下面的示例就是一个确保 SqlSession 关闭
+的标准模式：
+
+```java
+
+SqlSession session = sqlSessionFactory.openSession();
+try {
+  // do work
+} finally {
+  session.close();
+}
+
+```
+
+在你的所有的代码中一致性地使用这种模式来保证所有数据库资源都能被正确地关闭。
+
+## 映射器实例（Mapper Instances）
+
+映射器是创建用来绑定映射语句的接口。映射器接口的实例是从 SqlSession 中获得的。因此从技术
+层面讲，映射器实例的最大范围是和 SqlSession 相同的，因为它们都是从 SqlSession 里被请求
+的。尽管如此，映射器实例的最佳范围是方法范围。也就是说，映射器实例应该在调用它们的方法
+中被请求，用过之后即可废弃。并不需要显式地关闭映射器实例，尽管在整个请求范围
+（request scope）保持映射器实例也不会有什么问题，但是很快你会发现，像 SqlSession 一样，
+在这个范围上管理太多的资源的话会难于控制。所以要保持简单，最好把映射器放在方法范围
+（method scope）内。下面的示例就展示了这个实践：
+
+```java
+
+SqlSession session = sqlSessionFactory.openSession();
+try {
+  BlogMapper mapper = session.getMapper(BlogMapper.class);
+  // do work
+} finally {
+  session.close();
+}
+
+```
+
+
+# 源码分析
+
+## Initialization
+
+本小节，将会梳理一下MyBatis的初始化过程中，几个重要的阶段：
+
+1. Configuare
+2. TypeHandler
+3. Mapper
+
+### Configuare
+
+MyBatis可以通过`XML`或者`Java代码`配置`SqlSessionFactory`这个核心对象。
+
+使用`configuration.xml`配置的时候，配置各个属性的顺序要和
+
+```
+<!ELEMENT configuration (properties?, settings?, typeAliases?, typeHandlers?, objectFactory?, objectWrapperFactory?, reflectorFactory?, plugins?, environments?, databaseIdProvider?, mappers?)>
+
+```
+
+保持一致，否则MyBatis会报错。
+
+#### properties(定义属性)
+
+配置文件中，预定义一些属性，然后通过`${}`引用这些属性。
+
+#### settings(基础设置)
+
+配置mybatis的基本功能，比如说`二级缓存`，`lazy load`...
+
+#### typeAliases (别名配置)
+
+MyBatis使用别名的过程如下：
+
+1. Mapper.xml中给定Type='org.darkfireworld.Model'
+2. MyBatis首先对比`typeAliasesMap`中是否存在`org.darkfireworld.model`这个别名[忽略大小写]。
+3. 如果存在，则返回。否则调用`Class.forName()`解析。
+
+注意：如果为内部类，则需要使用`org.darkfireworld.Model$Type`引用。
+
+当然，MyBatis已经预定义了一些比较常见的别名：`hashmap`,`list`,`int`...
+
+
+
+#### typeHandlers(类型处理器)
+
+无论是 MyBatis 在预处理语句（PreparedStatement）中设置一个参数时，还是从结果集中取出一个
+值时， 都会用类型处理器将获取的值以合适的方式转换成 Java 类型。
+
+通过`typeHandlers`，可以配置Java<->Jdbc类型转换器。MyBatis已经预定义了一些`TypeHandler`：
+
+1. Boolean
+2. String
+3. Integer
+4. Long
+5. Date
+
+基本上，常见的Java类型的Handler都已经有了。
+
+但是有时候，我们也需要自定义一些`TypeHander`。首先，我们定一个`TypeHandler`：
+
+```java
+
+@MappedTypes(MyType.class)
+public class MyTypeHandler implements TypeHandler<MyType> {
+
+  @Override
+  public void setNonNullParameter(PreparedStatement ps, int i, MyType parameter, JdbcType jdbcType) throws SQLException {
+    ps.setString(i, parameter.toString());
+  }
+
+  @Override
+  public MyType getNullableResult(ResultSet rs, String columnName) throws SQLException {
+    return new MyType(rs.getString(columnName));
+  }
+
+  @Override
+  public MyType getNullableResult(ResultSet rs, int columnIndex) throws SQLException {
+    return new MyType(rs.getString(columnIndex));
+  }
+
+  @Override
+  public MyType getNullableResult(CallableStatement cs, int columnIndex) throws SQLException {
+    return new MyType(cs.getString(columnIndex));
+  }
+}
+
+```
+
+需要注意：
+
+1. 类需要实现`TypeHandler`接口。
+2. 需要添加注解`@MappedTypes`，表明对应Java中的类型。
+
+然后，我们将这个Handler注册到MyBatis中：
+
+```xml
+
+<typeHandlers>
+   <typeHandler handler="org.darkfireworld.MyTypeHandler"/>
+</typeHandlers>
+
+```
+
+或者，通过扫描注册(推荐)：
+
+```xml
+
+<typeHandlers>
+  <package name="org.darkfireworld"/>
+</typeHandlers>
+
+```
+
+这样子，MyBatis在处理`MyType`的时候，就可以通过`MyTypeHandler`处理参数或者结果了。
+
+
+
+#### environments(环境配置)
+
+通过`environments`标签，我们可以配置MyBatis的事务和数据源。
+
+一般来说，运行demo的配置，这样子就够了：
+
+```xml
+
+    <!--基础配置-->
+    <environments default="development">
+        <environment id="development">
+            <transactionManager type="JDBC"/>
+            <dataSource type="POOLED">
+                <property name="driver" value="com.mysql.jdbc.Driver"/>
+                <property name="url" value="jdbc:mysql://localhost:3306/test?useUnicode=true&amp;characterEncoding=UTF-8"/>
+                <property name="username" value="root"/>
+                <property name="password" value="root"/>
+            </dataSource>
+        </environment>
+    </environments>
+    
+```
+
+
+#### mappers(映射器)
+
+Mapper是MyBatis的关键概念，通过Mapper，可以将Java和Jdbc以及Sql结合起来。Mapper的注册通常有如下几种方式：
+
+1. `<mapper resource="org/mybatis/builder/AuthorMapper.xml"/>`，引入Mapper的XML。
+2. `<mapper class="org.mybatis.builder.AuthorMapper"/>`，引入Mapper的Interface。
+3. `<package name="org.mybatis.builder"/>`，注册某个包下所有的Mapper Interface。
+
+通常，我们使用第三种，可以节约许多工作量。
+
+### TypeHandler
+
+
+handler process : scan package ，touch ALL Handler implements TypeHandler ，获取 该类的 @MappedTypes 以及@MappedJdbcTypes 属性，注册到TypeHandlerRegister中.
+
+mybatis-mysql: boolean  tinyint(1) 0 : 1 可以自定义
+
+
+
+### Mapper
+
+init process: <mapper> -> package name -> register interface + interface.class.getName().xml（namespace一定要为 interface.class.getName ）  + 注解
+
+全部type 需要添加限定名，在重构的时候，能快速定位。
+
+最佳实践：
+    Java内部使用全属性构造器，MyBatis使用无参数构造器+set
+
+### Spring
+
+spring mybatis mapper 自动注入，如何提前注册所有的mapper bean到spring中 -> postProcessBeanDefinitionRegistry？
+
+
+
+Mapper 依赖sqlSession，所以生命周期和sqlSession一样，但是mybatis-spring的sqlSession是通过拦截器，获取当前事务的sqlSession。所以不必担心线程安全的问题。(SqlSessionTemplate)
+
+
+
+
+## Execute
+
+mybatis 执行sql过程：
+    0. 初始化所有的sql语句（加载xml的时候）
+    1. 通过参数构造作用域
+    2. 解析最初的sql语句（具有${}和#{}信息）
+        1. 遇到${}的时候，使用当前作用域中的属性(Object.toString())替换
+        2. 遇到<bind>，<include>#property-><sql> ，向当前作用域添加这个属性数值
+        3. 遇到#{}的时候，将当前这个参数加入到调用`参数列表`中。
+    3. 获取PreparedStatement，执行sql (SELECT * FROM id = ? 格式)，然后准备调用的参数
+        1. 读取`参数列表`
+        2. 使用MyBatis中的handlerType处理类型数值，然后设置到  PreparedStatement 中
+    4. 执行sql
+    5. 获取执行结果，然后构造JavaBean By resultMap
+
+
+### getMapper
+
+getMapper process : 调用getMapper->获取一个代理对象->调用的时候，获取方法名，然后调用 type.class + method 的 sql记录（来自于xml或者注解）本质上来说，还是和xml方式一样，就是外面套了一层壳
+
+Mapper param deal process : 单个参数，直接处理。 多个参数 采用hashMap传递参数，参数bind，默认 param1 param2 ，或者 1 2 3 | 如果指定 @Param，则采用指定的名称 + param1 param2 。
+
+
+### Sql Build
+
+### 参数绑定
+
+### 缓存
+mybatis 缓存刷新机制：遇到insert update delete 则刷新所有的缓存
+### 执行
+
+### 结果处理
+
+## Transactional
+
+### JDBC
+
+### Spring
+
+sqlSessionTemplate jdbcTemplate 混合使用的事务问题？
+
+
 
 
 ## 参考
