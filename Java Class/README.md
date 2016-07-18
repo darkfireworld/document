@@ -185,7 +185,7 @@ public class App {
     {
         System.out.println(field);
     }
-
+    //5
     public App() {
         System.out.println("construct");
     }
@@ -292,9 +292,8 @@ B
 
 Java的覆盖具有如下特点：
 
-1. 覆盖仅仅针对`非static`和`非final`的方法和属性。
-2. 在子类中可以通过`super.method()`和`super.field`来调用父类中的方法和属性。
-3. 覆盖和类的访问属性相关。
+1. 覆盖仅仅针对`非static`和`非final`的方法，属性不能被覆盖。
+2. 在子类中，可以通过`super.method()`和`super.field`来调用父类中的同名方法或者属性。
 
 ## 抽象类和接口
 
