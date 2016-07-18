@@ -717,28 +717,76 @@ try {
 
 本小节，将会梳理一下MyBatis的初始化过程中，几个重要的概念。
 
-### configuration
+### SqlSessionFactory
 
-MyBatis可以通过`XML`或者`Java代码`配置`SqlSessionFactory`这个核心对象。
+MyBatis的初始化，就是为了构造一个`SqlSessionFactory`对象。这个对象可以通过XML或者Java代码进行构造：
 
-使用`configuration.xml`配置的时候，配置各个属性的顺序要和
+**通过Java代码进行构造：**
+
+```java
+DataSource dataSource = BlogDataSourceFactory.getBlogDataSource();
+TransactionFactory transactionFactory = new JdbcTransactionFactory();
+Environment environment = new Environment("development", transactionFactory, dataSource);
+Configuration configuration = new Configuration(environment);
+configuration.addMapper(BlogMapper.class);
+SqlSessionFactory sqlSessionFactory = new SqlSessionFactoryBuilder().build(configuration);
 
 ```
-<!ELEMENT configuration (properties?, settings?, typeAliases?, typeHandlers?, objectFactory?, objectWrapperFactory?, reflectorFactory?, plugins?, environments?, databaseIdProvider?, mappers?)>
+
+**通过XML构造`SqlSessionFactory`对象：**
+
+运行代码：
+
+```java
+
+String resource = "org/mybatis/example/mybatis-config.xml";
+InputStream inputStream = Resources.getResourceAsStream(resource);
+sqlSessionFactory = new SqlSessionFactoryBuilder().build(inputStream);
 
 ```
 
-保持一致，否则MyBatis会报错。
+配置文件 configuration.xml:
 
-### properties(定义属性)
+```xml
 
-在配置文件中，预定义一些属性，然后通过`${}`引用这些属性。
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE configuration
+  PUBLIC "-//mybatis.org//DTD Config 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-config.dtd">
+<configuration>
+  <environments default="development">
+    <environment id="development">
+      <transactionManager type="JDBC"/>
+      <dataSource type="POOLED">
+        <property name="driver" value="${driver}"/>
+        <property name="url" value="${url}"/>
+        <property name="username" value="${username}"/>
+        <property name="password" value="${password}"/>
+      </dataSource>
+    </environment>
+  </environments>
+  <mappers>
+    <mapper resource="org/mybatis/example/BlogMapper.xml"/>
+  </mappers>
+</configuration>
 
-### settings(基础设置)
+```
 
-配置mybatis的基本功能，比如说`二级缓存`，`lazy load`...
+注意：使用`configuration.xml`配置的时候，**配置的属性要和DTD(/org/apache/ibatis/builder/xml/mybatis-3-mapper.dtd)顺序一致**，否则MyBatis会报错。
 
-### typeAliases (别名配置)
+
+通过构造`SqlSessionFactory`对象，我们可以设置：
+
+1. 基础功能(settings)：二级缓存`，`lazy load`...
+2. 别名(typeAliases)
+3. 类型处理器(typeHandlers)
+4. 数据源和事务(environments)
+5. 映射器(mappers)
+6. ...
+
+一般来说，一个应用中，只需要存在一个`SqlSessionFactory`单例就可以了。
+
+### 别名
 
 MyBatis使用别名的过程如下(`TypeAliasRegistry#resolveAlias`)：
 
@@ -750,7 +798,31 @@ MyBatis使用别名的过程如下(`TypeAliasRegistry#resolveAlias`)：
 
 当然，MyBatis已经预定义了一些比较常见的别名：`hashmap`,`list`,`int`...
 
-### typeHandlers(类型处理器)
+
+### 数据源和事务
+
+在运行demo的时候，我们通过`environments`标签可以配置一个简单的事务管理：
+
+```
+
+    <!--基础配置-->
+    <environments default="development">
+        <environment id="development">
+            <transactionManager type="JDBC"/>
+            <dataSource type="POOLED">
+                <property name="driver" value="com.mysql.jdbc.Driver"/>
+                <property name="url" value="jdbc:mysql://localhost:3306/test?useUnicode=true&amp;characterEncoding=UTF-8"/>
+                <property name="username" value="root"/>
+                <property name="password" value="root"/>
+            </dataSource>
+        </environment>
+    </environments>
+    
+```
+
+这个配置，对于运行demo来说，已经足够了。
+
+### 类型处理器
 
 无论是 MyBatis 在预处理语句（PreparedStatement）中设置一个参数时，还是从结果集中取出一个
 值时， 都会用类型处理器将获取的值以合适的方式转换成 Java 类型。
@@ -890,55 +962,172 @@ private <T> TypeHandler<T> getTypeHandler(Type type, JdbcType jdbcType) {
 `TypeHandlerRegistry`就是MyBatis的`TypeHandler`注册中心。
 
 
-#### environments(环境配置)
+### Mapper
 
-通过`environments`标签，我们可以配置MyBatis的事务和数据源。
-
-一般来说，运行demo的配置，这样子就够了：
-
-```xml
-
-    <!--基础配置-->
-    <environments default="development">
-        <environment id="development">
-            <transactionManager type="JDBC"/>
-            <dataSource type="POOLED">
-                <property name="driver" value="com.mysql.jdbc.Driver"/>
-                <property name="url" value="jdbc:mysql://localhost:3306/test?useUnicode=true&amp;characterEncoding=UTF-8"/>
-                <property name="username" value="root"/>
-                <property name="password" value="root"/>
-            </dataSource>
-        </environment>
-    </environments>
-    
-```
+Mapper是MyBatis的关键概念，通过Mapper，可以将Java和Jdbc以及Sql结合起来。
 
 
-### mappers(映射器)
+关于Interface和Xml 类型的Mapper：
 
-Mapper是MyBatis的关键概念，通过Mapper，可以将Java和Jdbc以及Sql结合起来。Mapper的注册通常有如下几种方式：
+1. Mapper Interface 用于规范Java代码调用MyBatis语句。
+2. Mapper Xml 是MyBatis的灵魂，而Mapper Interface 就是套在Mapper Xml外面的一层外壳。
+
+Mapper的注册通常有如下几种方式：
 
 1. `<mapper resource="org/mybatis/builder/AuthorMapper.xml"/>`，引入Mapper的XML。
 2. `<mapper class="org.mybatis.builder.AuthorMapper"/>`，引入Mapper的Interface。
 3. `<package name="org.mybatis.builder"/>`，注册某个包下所有的Mapper Interface。
 
-通常，我们使用第三种，可以节约许多工作量。
+通常，我们使用第三种，可以节约许多工作量。接下来，我们来讲解**方式三**是如何运行的。
 
-### Mapper
+首先，MyBatis根据配置，调用MapperRegistry#addMappers(String packageName, Class<?> superType)，
+分析指定目录下，所有父类为某个对象的类型：
 
-对于Mapper的处理，
+```java
 
-init process: <mapper> -> package name -> register interface + interface.class.getName().xml（namespace一定要为 interface.class.getName ）  + 注解
+  public void addMappers(String packageName, Class<?> superType) {
+    ResolverUtil<Class<?>> resolverUtil = new ResolverUtil<Class<?>>();
+    //解析，指定包下，所有父类为superType的类型
+    resolverUtil.find(new ResolverUtil.IsA(superType), packageName);
+    Set<Class<? extends Class<?>>> mapperSet = resolverUtil.getClasses();
+    for (Class<?> mapperClass : mapperSet) {
+      //注册这个类为Mapper
+      addMapper(mapperClass);
+    }
+  }
+```
 
-全部type 需要添加限定名，在重构的时候，能快速定位。
+如下是注册Mapper Interface到MyBatis中的代码：
+
+```java
+
+//只有接口类型，才能进行注册
+if (type.isInterface()) {
+  //判断之前是否已经注册过
+  if (hasMapper(type)) {
+    throw new BindingException("Type " + type + " is already known to the MapperRegistry.");
+  }
+  boolean loadCompleted = false;
+  try {
+    //构造一个给SqlSession.getMapper(Type.class)使用的代理类，放在knownMappers中。
+    knownMappers.put(type, new MapperProxyFactory<T>(type));
+    // It's important that the type is added before the parser is run
+    // otherwise the binding may automatically be attempted by the
+    // mapper parser. If the type is already known, it won't try.
+    MapperAnnotationBuilder parser = new MapperAnnotationBuilder(config, type);
+    //解析这个注解类型的Mapper
+    parser.parse();
+    loadCompleted = true;
+  } finally {
+    if (!loadCompleted) {
+      knownMappers.remove(type);
+    }
+  }
+}
+
+```
+
+注意：通过上述代码，可以发现，注册Mapper Interface仅仅构造一个该接口的代理类到`knownMappers`中。然后，
+**尝试加载**相应的SQL配置（Xml或者注解）。所以说，`Mapper Interface`相当于套在 `Mapper Xml`外面的一层壳。
+
+接下来，就是具体的解析Mapper的过程：
+
+```java
+
+  public void parse() {
+    String resource = type.toString();
+    //判断是否已经解析过
+    if (!configuration.isResourceLoaded(resource)) {
+      //加载对象Mapper Interface的XML配置，然后解析它
+      loadXmlResource();
+      configuration.addLoadedResource(resource);
+      //设置当前Mapper Interface的命名空间，然后给注解类型的SQL语句使用
+      assistant.setCurrentNamespace(type.getName());
+      parseCache();
+      parseCacheRef();
+      Method[] methods = type.getMethods();
+      for (Method method : methods) {
+        try {
+          // issue #237
+          if (!method.isBridge()) {
+            // 解析，注解类型的SQL语句，如@Select,@Update...
+            parseStatement(method);
+          }
+        } catch (IncompleteElementException e) {
+          configuration.addIncompleteMethod(new MethodResolver(this, method));
+        }
+      }
+    }
+    parsePendingMethods();
+  }
+
+```
+
+来看一下`loadXmlResource`方法，通过这个方法，将会加载Mapper Interface同名的Mapper XML（假设存在）：
+
+
+```java
+
+  // Spring may not know the real resource name so we check a flag
+    // to prevent loading again a resource twice
+    // this flag is set at XMLMapperBuilder#bindMapperForNamespace
+    if (!configuration.isResourceLoaded("namespace:" + type.getName())) {
+      
+      //假设Mapper Interface限定名为org.darkfireworld.ArticleMapper
+      //则会尝试加载org.darkfireworld.ArticleMapper.xml 这个Mapper文件
+      //如果，不存在，则直接返回，如果存在，则对这个Mapper xml进行解析
+      
+      String xmlResource = type.getName().replace('.', '/') + ".xml";
+      InputStream inputStream = null;
+      try {
+        inputStream = Resources.getResourceAsStream(type.getClassLoader(), xmlResource);
+      } catch (IOException e) {
+        // ignore, resource is not required
+      }
+      if (inputStream != null) {
+        // 构造一个 XMLMapperBuilder 解析器，注意这里给定了该Mapper Xml的空间命名一定为 type.getName() 
+        XMLMapperBuilder xmlParser = new XMLMapperBuilder(inputStream, assistant.getConfiguration(), xmlResource, configuration.getSqlFragments(), type.getName());
+        //解析该Mapper Xml 文件，然后注册SQL语句到 configuration 中
+        xmlParser.parse();
+      }
+    }
+
+```
+
+注意：通过上述代码可以看到：当加载一个Mapper Interface的时候，会尝试加载`限定名(Mapper Interface).xml`。
+如果存在这个Xml，则限制给Xml指向的命名空间为`限定名(Mapper Interface)`。
+
+我们再回过头来看一下，MyBatis如何解析注解类型的SQL，如：@Select，@Update：
+
+```java
+
+void parseStatement(Method method) {
+    //读取方法类型
+    Class<?> parameterTypeClass = getParameterType(method);
+    LanguageDriver languageDriver = getLanguageDriver(method);
+    //解析@Select,@Update等类型的SQL注解语句
+    SqlSource sqlSource = getSqlSourceFromAnnotations(method, parameterTypeClass, languageDriver);
+    //如果没有这种类型的注解，则跳过
+    if (sqlSource != null) {
+      //构造外部语句，类似于<select> ,<cache> 等
+      ...
+      // 注册到configuration的语句Map中
+      assistant.addMappedStatement(...);
+    }
+  }
+
+```
+
+以上就是Mapper Interface 注册和Mapper Xml 解析的过程，而具体的XML如何解析可以查看`XMLMapperBuilder`进行分析。分析的结果分别保存在：
+
+1. Mapper Interface的代理类，保存在`MapperRegistry#knownMappers`中，供`SqlSession#getMapper`调用
+2. Mapper Xml 解析出来的语句，保存在`Configuration#mappedStatements`，`Configuration#resultMaps`，...，`Configuration#parameterMaps`中
 
 最佳实践：
-    Java内部使用全属性构造器，MyBatis使用无参数构造器+set
 
-    
-    
-    
-    
+1. 对于Java Bean，在Java内部使用**全属性构造器**进行构造，而MyBatis使用**无参数构造器+Set方法**构造。
+2. Mapper Interface 和 Mapper Xml 放在一起，Interface定义接口，而Xml中定义具体的Sql语句
+3. 对于Xml中，使用到的TypeName，如：org.darkfireworld.Model，最好不要使用别名，统一使用全限定名，方便之后重构。
     
 
 ### Spring
