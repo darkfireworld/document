@@ -1888,18 +1888,6 @@ MappedStatement:
 
 
 
-mybatis 执行sql过程：
-    0. 初始化所有的sql语句（加载xml的时候）
-    1. 通过参数构造作用域
-    2. 解析最初的sql语句（具有${}和#{}信息）
-        1. 遇到${}的时候，使用当前作用域中的属性(Object.toString())替换
-        2. 遇到<bind>，<include>#property-><sql> ，向当前作用域添加这个属性数值
-        3. 遇到#{}的时候，将当前这个参数加入到调用`参数列表`中。
-    3. 获取PreparedStatement，执行sql (SELECT * FROM id = ? 格式)，然后准备调用的参数(SELECT | UPDATE,INSERT,DELETE 语义上没有什么区别)
-        1. 读取`参数列表`
-        2. 使用MyBatis中的handlerType处理类型数值，然后设置到  PreparedStatement 中
-    4. 执行sql
-    5. 获取执行结果，然后构造JavaBean By resultMap
 
 
 
