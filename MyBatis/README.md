@@ -1400,7 +1400,7 @@ private void buildStatementFromContext(List<XNode> list, String requiredDatabase
 
 ```
 
-
+可以看到，`XMLMapperBuilder`提供了<mapper>和其他顶级元素的解析，而通过`XMLStatementBuilder`解析<select>,<update>.. 标签和SQL语句：
 
 ```java
 
