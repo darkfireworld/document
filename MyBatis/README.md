@@ -1186,8 +1186,6 @@ Mapper可以通过`@Autowired`注入。
 
 如下是实现扫描包，然后注册`Mapper Interface`到Spring容器的代码：
 
-当Spring加载`MapperScannerConfigurer`这个Bean后，容器搜集Bean结束后，会调用实现`BeanDefinitionRegistryPostProcessor`后处理器（MapperScannerConfigurer）
-
 ```java
 
   @Override
@@ -1211,6 +1209,8 @@ Mapper可以通过`@Autowired`注入。
   }
   
 ```
+
+当Spring加载`MapperScannerConfigurer`这个Bean后，容器搜集Bean结束后，会调用实现`BeanDefinitionRegistryPostProcessor`后处理器（MapperScannerConfigurer）
 
 注意：如果仅仅指定package，则该扫描器会加载这个包下面所有的Interface。
 
