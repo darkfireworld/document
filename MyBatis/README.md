@@ -1086,6 +1086,7 @@ if (type.isInterface()) {
       }
       if (inputStream != null) {
         // 构造一个 XMLMapperBuilder 解析器，注意这里给定了该Mapper Xml的空间命名一定为 type.getName() 
+        // 注意：这里的 inputStream 会被DOM解析器自动关闭。
         XMLMapperBuilder xmlParser = new XMLMapperBuilder(inputStream, assistant.getConfiguration(), xmlResource, configuration.getSqlFragments(), type.getName());
         //解析该Mapper Xml 文件，然后注册SQL语句到 configuration 中
         xmlParser.parse();
@@ -1322,6 +1323,14 @@ public class MapperFactoryBean<T> extends SqlSessionDaoSupport implements Factor
 
 ## Execute
 
+本小节，将会介绍一下Mybatis执行的过程：
+
+1. Mapper Xml 解析
+2. Mapper Interface和调用参数
+3. 动态SQL处理
+4. SQL参数绑定
+5. resultMap处理
+
 mybatis 执行sql过程：
     0. 初始化所有的sql语句（加载xml的时候）
     1. 通过参数构造作用域
@@ -1329,11 +1338,182 @@ mybatis 执行sql过程：
         1. 遇到${}的时候，使用当前作用域中的属性(Object.toString())替换
         2. 遇到<bind>，<include>#property-><sql> ，向当前作用域添加这个属性数值
         3. 遇到#{}的时候，将当前这个参数加入到调用`参数列表`中。
-    3. 获取PreparedStatement，执行sql (SELECT * FROM id = ? 格式)，然后准备调用的参数
+    3. 获取PreparedStatement，执行sql (SELECT * FROM id = ? 格式)，然后准备调用的参数(SELECT | UPDATE,INSERT,DELETE 语义上没有什么区别)
         1. 读取`参数列表`
         2. 使用MyBatis中的handlerType处理类型数值，然后设置到  PreparedStatement 中
     4. 执行sql
     5. 获取执行结果，然后构造JavaBean By resultMap
+    
+### Mapper Xml 解析
+
+使用MyBatis的时候，一般来说，我们都需要编写`Mapper Xml`。通过`Mapper Xml`实现了**Java <--> SQL <--> Jdbc** 的转换。这里来分析一下`Mapper Xml`的解析过程。
+
+![](89EA.tmp.jpg)
+
+以上是几个重要的解析类：
+
+1. XMLMapperBuilder:解析mapper标签
+2. XMLStatementBuilder:解析SQL语句
+3. XMLIncludeTransformer:解析include标签
+
+
+首先，看一下最外层的<mapper>元素解析(XMLMapperBuilder.java):
+
+```java
+
+//1. 解析Mapper Xml
+//2. 尝试加载相应命名空间下的Mapper Interface
+public void parse() {
+    if (!configuration.isResourceLoaded(resource)) {
+      //解析 <mapper>标签
+      configurationElement(parser.evalNode("/mapper"));
+      configuration.addLoadedResource(resource);
+      // 尝试注册相应空间命名下面的Mapper Interface
+      bindMapperForNamespace();
+    }
+    ...
+}
+
+//解析各个元素，如 <cache>，<resultMap> ，<sql>
+//解析核心的SQL语句，如<select>，<update>...
+private void configurationElement(XNode context) {
+    try {
+      String namespace = context.getStringAttribute("namespace");
+      if (namespace == null || namespace.equals("")) {
+        throw new BuilderException("Mapper's namespace cannot be empty");
+      }
+      //解析命名空间
+      builderAssistant.setCurrentNamespace(namespace);
+      //解析cache-ref
+      cacheRefElement(context.evalNode("cache-ref"));
+      cacheElement(context.evalNode("cache"));
+      parameterMapElement(context.evalNodes("/mapper/parameterMap"));
+      resultMapElements(context.evalNodes("/mapper/resultMap"));
+      //解析<sql>
+      sqlElement(context.evalNodes("/mapper/sql"));
+      //解析核心的SQL语句
+      buildStatementFromContext(context.evalNodes("select|insert|update|delete"));
+    } catch (Exception e) {
+      throw new BuilderException("Error parsing Mapper XML. Cause: " + e, e);
+    }
+}
+
+//解析具体<select>，<update>，标签中的内容
+private void buildStatementFromContext(List<XNode> list) {
+    if (configuration.getDatabaseId() != null) {
+      buildStatementFromContext(list, configuration.getDatabaseId());
+    }
+    //解析具体的SQL语句
+    buildStatementFromContext(list, null);
+}
+
+//通过 XMLStatementBuilder 解析 SQL语句
+private void buildStatementFromContext(List<XNode> list, String requiredDatabaseId) {
+    for (XNode context : list) {
+      final XMLStatementBuilder statementParser = new XMLStatementBuilder(configuration, builderAssistant, context, requiredDatabaseId);
+      try {
+        //解析SQL语句
+        statementParser.parseStatementNode();
+      } catch (IncompleteElementException e) {
+        configuration.addIncompleteStatement(statementParser);
+      }
+    }
+}
+```
+
+`XMLMapperBuilder`提供了<mapper>和其他顶级元素的解析，而具体<select>,<update>.. 标签中的语句解析依赖`XMLStatementBuilder`：
+
+```java
+
+//解析SQL语句
+public void parseStatementNode() {
+    ...
+    //<select> <update> 中的属性，如fetchSize,timeout,resultMap等
+    Integer timeout = context.getIntAttribute("timeout");
+    ...
+    Class<?> parameterTypeClass = resolveClass(parameterType);
+    String resultMap = context.getStringAttribute("resultMap");
+    
+    
+    //解析具体的SQL语句，如果存在<include>等标签，则会剔除。
+    SqlSource sqlSource = langDriver.createSqlSource(configuration, context, parameterTypeClass);
+    String resultSets = context.getStringAttribute("resultSets");
+    //主键解析
+    String keyProperty = context.getStringAttribute("keyProperty");
+    ...
+    
+    //将当前解析的语句，注册到 MyBatis的 Configuration 对象中。
+    //以便通过 sqlSession.selectOne('statement',?) 调用
+    builderAssistant.addMappedStatement(id, sqlSource, statementType, sqlCommandType,
+        fetchSize, timeout, parameterMap, parameterTypeClass, resultMap, resultTypeClass,
+        resultSetTypeEnum, flushCache, useCache, resultOrdered, 
+        keyGenerator, keyProperty, keyColumn, databaseId, langDriver, resultSets);
+  }
+
+```
+
+获取的`SqlSource`一般来说存在两种类型：
+
+1. RawSqlSource：非动态SQL类型
+2. DynamicSqlSource：动态SQL，比如说：存在<if>,<where>,${}等Token，需要给定参数后，才能确认最后执行的SQL
+
+**RawSqlSource：**
+
+```xml
+    <sql id="columns">
+        id,content,type
+    </sql>
+    
+    <select id="selectList" resultMap="resultArticle">
+        SELECT
+            <include refid="columns"/>
+        FROM
+            t_article
+        WHERE
+            content like #{content} and type = #{type}
+    </select>
+    
+```
+
+![](1D76.tmp.jpg)
+
+上述的SQL语句，在构造SqlSource的时候，不需要生成动态SQL（<if>，<where>，${param}），则会直接构造出 `RawSqlSource`。
+
+**DynamicSqlSource：**
+
+```xml
+
+
+    <!--占用符-通用字段-->
+    <sql id="#id">
+        ${item}
+    </sql>
+    <!--新增/插入一个分类-->
+    <update id="merge">
+        UPDATE
+            t_article
+        SET
+            <include refid="#id">
+                <!--include指向的sql语句中的${item}会被id替换-->
+                <property name="item" value="id"/>
+            </include>
+            = #{id}
+        WHERE
+            ${property} = #{value}
+    </update>
+
+
+```
+
+![](51A.tmp.jpg)
+
+注意：<include>#<property> 会定义构造时候的上下文变量，用来替换指向<sql>语句中的${key}。可以查看`XMLIncludeTransformer`的源码。
+
+上述的SQL语句，在构造SqlSource的时候，因为无法解析 ${property} 的数值，需要在参数中确定，所以构造了`DynamicSqlSource`对象。
+
+到此，SQL语句的解析，基本上结束了。无论是`RawSqlSource`还是`DynamicSqlSource`还是其他的`SqlSource`，最后都保存在`Configuration#mappedStatements`中。
+然后被`SqlSession#selectOne('statement',?)`调用。
+
 
 
 ### getMapper
