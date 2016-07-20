@@ -1130,9 +1130,7 @@ void parseStatement(Method method) {
 3. 对于Xml中，使用到的TypeName，如：org.darkfireworld.Model，最好不要使用别名，统一使用全限定名，方便之后重构。
 
 
-## 执行
-
-### Mapper Xml
+## Mapper Xml 解析
 
 使用MyBatis的时候，一般来说，我们都需要编写`Mapper Xml`。通过`Mapper Xml`实现了**Java <--> SQL <--> Jdbc** 的转换。这里来分析一下`Mapper Xml`的解析过程。
 
@@ -1316,6 +1314,8 @@ public void parseStatementNode() {
 
 所以可以说，一个`MappedStatement`代表着XML中一句SQL语句信息。当然了，Mapper Xml 中还包含了一些其他信息，这些信息都保存在`Configuration`对象中。
 
+
+## 执行
 
 ### Mapper Call
 
