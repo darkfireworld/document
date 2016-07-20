@@ -1128,197 +1128,7 @@ void parseStatement(Method method) {
 1. 对于Java Bean，在Java内部使用**全属性构造器**进行构造，而MyBatis使用**无参数构造器+Set方法**构造。
 2. Mapper Interface 和 Mapper Xml 放在一起，Interface定义接口，而Xml中定义具体的Sql语句
 3. 对于Xml中，使用到的TypeName，如：org.darkfireworld.Model，最好不要使用别名，统一使用全限定名，方便之后重构。
-    
 
-### Spring
-
-通常MyBatis会和Spring一起使用。通过`mybatis-spring`组件，就可以非常方便的和Spring整合。通用配置如下：
-
-```xml
-
-    <!--dataSource-->
-    <bean id="dataSource" class="..."/>
-    <!--事务性-->
-    <bean id="transactionManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
-        <property name="dataSource" ref="dataSource"/>
-    </bean>
-    <!--mybatis -->
-    <bean id="sqlSessionFactory" class="org.mybatis.spring.SqlSessionFactoryBean">
-        <property name="dataSource" ref="dataSource" />
-        <property name="typeHandlersPackage" value="org.darkgem.io"/>
-    </bean>
-    <!--mapper-->
-    <bean class="org.mybatis.spring.mapper.MapperScannerConfigurer">
-        <property name="basePackage" value="org.darkgem.io" />
-    </bean>
-
-```
-
-这样子，MyBatis就和Spring整合在一起了。
-
-**SqlSessionFactoryBean：**
-
-`SqlSessionFactoryBean`这个类是用来配置MyBatis的`SqlSessionFactory`的。我们可以通过`SqlSessionFactoryBean`配置：
-
-1. dataSource：数据源，必须
-2. typeAliases：别名，可选
-3. typeHandlers：类型转换器（可以设置package name）：可选
-4. ....
-
-这个类，相当于`configuration.xml`。
-
-
-**MapperScannerConfigurer：**
-
-在Spring中，我们通常使用
-
-```java
-
-@Autowired
-ArticleMapper articleMapper;
-
-```
-
-来注入一个`MyBatis Mapper Interface`对象，然后进行调用。
-
-通过配置`MapperScannerConfigurer`，我们可以扫描某个目录下所有的Mapper接口。然后注册到Spring容器中，使得这些
-Mapper可以通过`@Autowired`注入。
-
-如下是实现扫描包，然后注册`Mapper Interface`到Spring容器的代码：
-
-```java
-
-  @Override
-  public void postProcessBeanDefinitionRegistry(BeanDefinitionRegistry registry) {
-    if (this.processPropertyPlaceHolders) {
-      processPropertyPlaceHolders();
-    }
-    //定义了一个Scanner，扫描指定目录下的Mapper Interface
-    ClassPathMapperScanner scanner = new ClassPathMapperScanner(registry);
-    scanner.setAddToConfig(this.addToConfig);
-    scanner.setAnnotationClass(this.annotationClass);
-    scanner.setMarkerInterface(this.markerInterface);
-    scanner.setSqlSessionFactory(this.sqlSessionFactory);
-    scanner.setSqlSessionTemplate(this.sqlSessionTemplate);
-    scanner.setSqlSessionFactoryBeanName(this.sqlSessionFactoryBeanName);
-    scanner.setSqlSessionTemplateBeanName(this.sqlSessionTemplateBeanName);
-    scanner.setResourceLoader(this.applicationContext);
-    scanner.setBeanNameGenerator(this.nameGenerator);
-    scanner.registerFilters();
-    scanner.scan(StringUtils.tokenizeToStringArray(this.basePackage, ConfigurableApplicationContext.CONFIG_LOCATION_DELIMITERS));
-  }
-  
-```
-
-当Spring加载`MapperScannerConfigurer`这个Bean后，容器搜集Bean结束后，会调用实现`BeanDefinitionRegistryPostProcessor`后处理器（MapperScannerConfigurer）
-
-注意：如果仅仅指定package，则该扫描器会加载这个包下面所有的Interface。
-
-然后，我们看一下扫描器，检测到一个Mapper Interface后的处理动作：
-
-```java
-
-private void processBeanDefinitions(Set<BeanDefinitionHolder> beanDefinitions) {
-    GenericBeanDefinition definition;
-    for (BeanDefinitionHolder holder : beanDefinitions) {
-      
-      //获取这个扫描到的Bean的基础属性，类似<bean id="package.typeName">
-      definition = (GenericBeanDefinition) holder.getBeanDefinition();
-
-      if (logger.isDebugEnabled()) {
-        logger.debug("Creating MapperFactoryBean with name '" + holder.getBeanName() 
-          + "' and '" + definition.getBeanClassName() + "' mapperInterface");
-      }
-
-      // the mapper interface is the original class of the bean
-      // but, the actual class of the bean is MapperFactoryBean
-      
-      //设置具体对应Mapper Class的构造函数的参数类型
-      definition.getConstructorArgumentValues().addGenericArgumentValue(definition.getBeanClassName()); // issue #59
-      //设置这个Bean具体对应的class，这个实现类，其实是一个代理
-      definition.setBeanClass(this.mapperFactoryBean.getClass());
-
-      ....
-
-      if (!explicitFactoryUsed) {
-        if (logger.isDebugEnabled()) {
-          logger.debug("Enabling autowire by type for MapperFactoryBean with name '" + holder.getBeanName() + "'.");
-        }
-        definition.setAutowireMode(AbstractBeanDefinition.AUTOWIRE_BY_TYPE);
-      }
-    }
-  }
-
-```
-
-可以发现这里的`BeanDefinitionHolder`其实就是对应的`Mapper Interface`：
-
-![](9577.tmp.jpg)
-
-然后，通过设置该Bean的class='org.mybatis.spring.mapper.MapperFactoryBean' 以及构造函数='definition.getBeanClassName()'，
-就完成了该Mapper Bean的构造，然后就添加到容器中去了。
-
-我们再看看`MapperFactoryBean`代码：
-
-```java
-
-public class MapperFactoryBean<T> extends SqlSessionDaoSupport implements FactoryBean<T> {
-
-  private Class<T> mapperInterface;
-
-  private boolean addToConfig = true;
-
-  public MapperFactoryBean() {
-    //intentionally empty 
-  }
-  
-  //扫描器工作完成后，通过
-  //definition.getConstructorArgumentValues().addGenericArgumentValue(definition.getBeanClassName()); issue #59
-  //定义的构造函数，主要用途是注入 该bean的 mapperInterface.
-  public MapperFactoryBean(Class<T> mapperInterface) {
-    this.mapperInterface = mapperInterface;
-  }
-
-  //初始化该Mapper
-  @Override
-  protected void checkDaoConfig() {
-    super.checkDaoConfig();
-
-    notNull(this.mapperInterface, "Property 'mapperInterface' is required");
-
-    Configuration configuration = getSqlSession().getConfiguration();
-    if (this.addToConfig && !configuration.hasMapper(this.mapperInterface)) {
-      try {
-        //通过MyBaits解析该Mapper
-        configuration.addMapper(this.mapperInterface);
-      } catch (Exception e) {
-        logger.error("Error while adding the mapper '" + this.mapperInterface + "' to configuration.", e);
-        throw new IllegalArgumentException(e);
-      } finally {
-        ErrorContext.instance().reset();
-      }
-    }
-  }
-
-  /**
-   * {@inheritDoc}
-   */
-  @Override
-  public T getObject() throws Exception {
-    //获取一个具体的Mapper代理对象
-    return getSqlSession().getMapper(this.mapperInterface);
-  }
-  
-  ...
-}
-
-```
-
-可以发现`MapperFactoryBean`是一个工厂类`FactoryBean`，最后获取的Bean对象，其实是通过`MapperFactoryBean#getObject()`获取的。
-
-注意：`getSqlSession()`获取到的SqlSession其实是`SqlSessionTemplate`对象，这个对象是**线程安全**的。
-
-通过`SqlSessionFactoryBean`和`MapperScannerConfigurer`两个类，我们非常方便的整合MyBatis到Spring中了。
 
 ## 执行
 
@@ -2209,16 +2019,294 @@ PreparedStatementHandler:
 
 通过了解执行过程，有助于我们了解MyBatis缓存，动态SQL，TypeHandler等机制。
 
-## 事务
+## Spring
 
-### JDBC
+### 配置
 
-### Spring
+通常MyBatis会和Spring一起使用。通过`mybatis-spring`组件，就可以非常方便的和Spring整合。通用配置如下：
 
-sqlSessionTemplate jdbcTemplate 混合使用的事务问题？
-Mapper 依赖sqlSession，所以生命周期和sqlSession一样，但是mybatis-spring的sqlSession是通过拦截器，获取当前事务的sqlSession。所以不必担心线程安全的问题。(SqlSessionTemplate)
+```xml
+
+    <!--dataSource-->
+    <bean id="dataSource" class="..."/>
+    <!--事务性-->
+    <bean id="transactionManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+        <property name="dataSource" ref="dataSource"/>
+    </bean>
+    <!--mybatis -->
+    <bean id="sqlSessionFactory" class="org.mybatis.spring.SqlSessionFactoryBean">
+        <property name="dataSource" ref="dataSource" />
+        <property name="typeHandlersPackage" value="org.darkgem.io"/>
+    </bean>
+    <!--mapper-->
+    <bean class="org.mybatis.spring.mapper.MapperScannerConfigurer">
+        <property name="basePackage" value="org.darkgem.io" />
+    </bean>
+
+```
+
+这样子，MyBatis就和Spring整合在一起了。
+
+**SqlSessionFactoryBean：**
+
+`SqlSessionFactoryBean`这个类是用来配置MyBatis的`SqlSessionFactory`的。我们可以通过`SqlSessionFactoryBean`配置：
+
+1. dataSource：数据源，必须
+2. typeAliases：别名，可选
+3. typeHandlers：类型转换器（可以设置package name）：可选
+4. ....
+
+这个类，相当于`configuration.xml`。
 
 
+**MapperScannerConfigurer：**
+
+在Spring中，我们通常使用
+
+```java
+
+@Autowired
+ArticleMapper articleMapper;
+
+```
+
+来注入一个`MyBatis Mapper Interface`对象，然后进行调用。
+
+通过配置`MapperScannerConfigurer`，我们可以扫描某个目录下所有的Mapper接口。然后注册到Spring容器中，使得这些
+Mapper可以通过`@Autowired`注入。
+
+如下是实现扫描包，然后注册`Mapper Interface`到Spring容器的代码：
+
+```java
+
+  @Override
+  public void postProcessBeanDefinitionRegistry(BeanDefinitionRegistry registry) {
+    if (this.processPropertyPlaceHolders) {
+      processPropertyPlaceHolders();
+    }
+    //定义了一个Scanner，扫描指定目录下的Mapper Interface
+    ClassPathMapperScanner scanner = new ClassPathMapperScanner(registry);
+    scanner.setAddToConfig(this.addToConfig);
+    scanner.setAnnotationClass(this.annotationClass);
+    scanner.setMarkerInterface(this.markerInterface);
+    scanner.setSqlSessionFactory(this.sqlSessionFactory);
+    scanner.setSqlSessionTemplate(this.sqlSessionTemplate);
+    scanner.setSqlSessionFactoryBeanName(this.sqlSessionFactoryBeanName);
+    scanner.setSqlSessionTemplateBeanName(this.sqlSessionTemplateBeanName);
+    scanner.setResourceLoader(this.applicationContext);
+    scanner.setBeanNameGenerator(this.nameGenerator);
+    scanner.registerFilters();
+    scanner.scan(StringUtils.tokenizeToStringArray(this.basePackage, ConfigurableApplicationContext.CONFIG_LOCATION_DELIMITERS));
+  }
+  
+```
+
+当Spring加载`MapperScannerConfigurer`这个Bean后，容器搜集Bean结束后，会调用实现`BeanDefinitionRegistryPostProcessor`后处理器（MapperScannerConfigurer）
+
+注意：如果仅仅指定package，则该扫描器会加载这个包下面所有的Interface。
+
+然后，我们看一下扫描器，检测到一个Mapper Interface后的处理动作：
+
+```java
+
+private void processBeanDefinitions(Set<BeanDefinitionHolder> beanDefinitions) {
+    GenericBeanDefinition definition;
+    for (BeanDefinitionHolder holder : beanDefinitions) {
+      
+      //获取这个扫描到的Bean的基础属性，类似<bean id="package.typeName">
+      definition = (GenericBeanDefinition) holder.getBeanDefinition();
+
+      if (logger.isDebugEnabled()) {
+        logger.debug("Creating MapperFactoryBean with name '" + holder.getBeanName() 
+          + "' and '" + definition.getBeanClassName() + "' mapperInterface");
+      }
+
+      // the mapper interface is the original class of the bean
+      // but, the actual class of the bean is MapperFactoryBean
+      
+      //设置具体对应Mapper Class的构造函数的参数类型
+      definition.getConstructorArgumentValues().addGenericArgumentValue(definition.getBeanClassName()); // issue #59
+      //设置这个Bean具体对应的class，这个实现类，其实是一个代理
+      definition.setBeanClass(this.mapperFactoryBean.getClass());
+
+      ....
+
+      if (!explicitFactoryUsed) {
+        if (logger.isDebugEnabled()) {
+          logger.debug("Enabling autowire by type for MapperFactoryBean with name '" + holder.getBeanName() + "'.");
+        }
+        definition.setAutowireMode(AbstractBeanDefinition.AUTOWIRE_BY_TYPE);
+      }
+    }
+  }
+
+```
+
+可以发现这里的`BeanDefinitionHolder`其实就是对应的`Mapper Interface`：
+
+![](9577.tmp.jpg)
+
+然后，通过设置该Bean的class='org.mybatis.spring.mapper.MapperFactoryBean' 以及构造函数='definition.getBeanClassName()'，
+就完成了该Mapper Bean的构造，然后就添加到容器中去了。
+
+我们再看看`MapperFactoryBean`代码：
+
+```java
+
+public class MapperFactoryBean<T> extends SqlSessionDaoSupport implements FactoryBean<T> {
+
+  private Class<T> mapperInterface;
+
+  private boolean addToConfig = true;
+
+  public MapperFactoryBean() {
+    //intentionally empty 
+  }
+  
+  //扫描器工作完成后，通过
+  //definition.getConstructorArgumentValues().addGenericArgumentValue(definition.getBeanClassName()); issue #59
+  //定义的构造函数，主要用途是注入 该bean的 mapperInterface.
+  public MapperFactoryBean(Class<T> mapperInterface) {
+    this.mapperInterface = mapperInterface;
+  }
+
+  //初始化该Mapper
+  @Override
+  protected void checkDaoConfig() {
+    super.checkDaoConfig();
+
+    notNull(this.mapperInterface, "Property 'mapperInterface' is required");
+
+    Configuration configuration = getSqlSession().getConfiguration();
+    if (this.addToConfig && !configuration.hasMapper(this.mapperInterface)) {
+      try {
+        //通过MyBaits解析该Mapper
+        configuration.addMapper(this.mapperInterface);
+      } catch (Exception e) {
+        logger.error("Error while adding the mapper '" + this.mapperInterface + "' to configuration.", e);
+        throw new IllegalArgumentException(e);
+      } finally {
+        ErrorContext.instance().reset();
+      }
+    }
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public T getObject() throws Exception {
+    //getSqlSession = SqlSessionTemplate对象，这个对象是线程安全的。
+    return getSqlSession().getMapper(this.mapperInterface);
+  }
+  
+  ...
+}
+
+```
+
+可以发现`MapperFactoryBean`是一个工厂类`FactoryBean`，最后获取的Bean对象，其实是通过`MapperFactoryBean#getObject()`获取的。
+
+通过`SqlSessionFactoryBean`和`MapperScannerConfigurer`两个类，我们非常方便的整合MyBatis到Spring中了。
+
+
+### SqlSessionTemplate
+
+通常，我们在Spring中使用MyBatis的时候，一般都是通过 `SqlSessionTemplate` 或者 `Mapper` 来使用MyBatis的功能的，而`Mapper`其实也是
+依赖`SqlSessionTemplate`对象（见Spring-Mapper初始化）。我们来看一下 `SqlSessionTemplate` 的源代码：
+
+```java
+public class SqlSessionTemplate implements SqlSession, DisposableBean {
+
+  private final SqlSessionFactory sqlSessionFactory;
+
+  private final ExecutorType executorType;
+
+  private final SqlSession sqlSessionProxy;
+
+  private final PersistenceExceptionTranslator exceptionTranslator;
+
+  ...
+  
+  //构造函数
+  public SqlSessionTemplate(SqlSessionFactory sqlSessionFactory, ExecutorType executorType,
+      PersistenceExceptionTranslator exceptionTranslator) {
+
+    notNull(sqlSessionFactory, "Property 'sqlSessionFactory' is required");
+    notNull(executorType, "Property 'executorType' is required");
+
+    this.sqlSessionFactory = sqlSessionFactory;
+    this.executorType = executorType;
+    this.exceptionTranslator = exceptionTranslator;
+    //代理类
+    this.sqlSessionProxy = (SqlSession) newProxyInstance(
+        SqlSessionFactory.class.getClassLoader(),
+        new Class[] { SqlSession.class },
+        new SqlSessionInterceptor());
+  }
+
+  ...
+  @Override
+  public <E> List<E> selectList(String statement, Object parameter) {
+    return this.sqlSessionProxy.<E> selectList(statement, parameter);
+  }
+  ...
+
+  @Override
+  public int update(String statement, Object parameter) {
+    return this.sqlSessionProxy.update(statement, parameter);
+  }
+
+  ...
+
+  @Override
+  public <T> T getMapper(Class<T> type) {
+    return getConfiguration().getMapper(type, this);
+  }
+
+
+  @Override
+  public void commit() {
+    throw new UnsupportedOperationException("Manual commit is not allowed over a Spring managed SqlSession");
+  }
+  ...
+
+  //执行代理
+  private class SqlSessionInterceptor implements InvocationHandler {
+    @Override
+    public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+      //获取一个当前线程，当前事务的sqlSession，一般为DefaultSqlSession类型。
+      SqlSession sqlSession = getSqlSession(
+          SqlSessionTemplate.this.sqlSessionFactory,
+          SqlSessionTemplate.this.executorType,
+          SqlSessionTemplate.this.exceptionTranslator);
+      try {
+        //执行
+        Object result = method.invoke(sqlSession, args);
+        ...
+        return result;
+      } catch (Throwable t) {
+        ...
+      }
+      ...
+    }
+  }
+
+}
+
+
+```
+
+`SqlSessionTemplate`对象主要实现了两个功能：
+
+1. 因为`SqlSessionTemplate`是SqlSession的子类，所以它实现了getMapper方法，且给定的sqlSession就是`SqlSessionTemplate`对象。
+2. SqlSessionTemplate 通过拦截器，拦截了**select，update，insert，delete**等API的调用，转发给**当前线程事务**的`DefaultSqlSession`，而这个对象被Spring 事务管理器管理。
+
+通过`getSqlSession`这个方法，将`SqlSessionTemplate`委托为Spring的事务管理器进行管理，从而获得了如下的功能：
+
+1. @Transactional注解：这个特性应该是Spring 3.x 最具有吸引力的特性了。
+2. 线程安全：SqlSession是通过Spring事务管理器中资源管理器进行管理，所以具有了线程安全的特性。
+3. 兼容Spring事务：通过`SpringManagedTransaction`事务管理器，兼容了Spring原有的事务，如：打开JDBC连接，commit，rollback等操作。
 
 ## 参考
 
