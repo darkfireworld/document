@@ -1268,7 +1268,7 @@ public void parseStatementNode() {
 
 ![](1D76.tmp.jpg)
 
-上述的SQL语句，在构造SqlSource的时候，不需要生成动态SQL（<if>，<where>，${param}），则会直接构造出 `RawSqlSource`。
+上述的SQL语句，在构造SqlSource的时候，不需要生成动态SQL（if，where，${param}），则会直接构造出 `RawSqlSource`。
 
 **DynamicSqlSource：**
 
