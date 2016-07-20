@@ -1246,7 +1246,7 @@ public void parseStatementNode() {
 获取的`SqlSource`一般来说存在两种类型：
 
 1. RawSqlSource：非动态SQL类型
-2. DynamicSqlSource：动态SQL，比如说：存在<if>,<where>,${}等Token，需要给定参数后，才能确认最后执行的SQL
+2. DynamicSqlSource：动态SQL，比如说：存在if,where,${}等Token，需要给定参数后，才能确认最后执行的SQL
 
 **RawSqlSource：**
 
