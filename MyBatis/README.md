@@ -1492,9 +1492,19 @@ public void parseStatementNode() {
 
 上述的SQL语句，在构造SqlSource的时候，因为无法解析 ${property} 的数值，需要在参数中确定，所以构造了`DynamicSqlSource`对象。
 
-无论是`RawSqlSource`还是`DynamicSqlSource`还是其他的`SqlSource`，最后都保存在`Configuration#mappedStatements`中。然后被`SqlSession#selectOne('statement',?)`调用。
+无论是`RawSqlSource`还是`DynamicSqlSource`还是其他的`SqlSource`，最后都保存在`Configuration#mappedStatements`中。
 
-到此，Mapper Xml 解析基本上结束了。解析出来的数据，都保存在`Configuration`对象中，然后被使用。
+**MappedStatement:**
+
+一个完整的`MappedStatement`对象，它包括了如下信息：
+
+1. SqlSource : XML 中SQL信息，以及相对应的参数配置信息。
+2. resultMaps: 结果处理信息
+3. id ：相当于命名空间+执行ID
+4. statementType：语句的类型，如SELECT，UPDATE...
+
+
+所以可以说，一个`MappedStatement`代表着XML中的SQL语句信息。当然了，Mapper Xml 中还包含了一些其他信息，这些信息都保存在`Configuration`对象中。
 
 
 ### Mapper Call
@@ -1813,8 +1823,8 @@ public interface Executor {
 
 注意：通过API可以发现MyBatis中SQL语句可以分为两类：
 
-1. update[UPDATE,INSERT,DELETE]：一旦调用，则Session Cache会失效。
-2. query[SELECT]: 优先查询Session Cache，如果没有命中，则查询数据库。
+1. **update[UPDATE,INSERT,DELETE]：一旦调用，则Session Cache会失效。**
+2. **query[SELECT]: 优先查询Session Cache，如果没有命中，则查询数据库。**
 
 所以，在定义Mapper 中的SQL的时候，只需要区分 SELECT 和 UPDATE 即可。
 
@@ -1889,8 +1899,21 @@ MappedStatement:
 
 如下是query的代码：
 
+
 ```java
- public <E> List<E> query(MappedStatement ms, Object parameter, RowBounds rowBounds, ResultHandler resultHandler, CacheKey key, BoundSql boundSql) throws SQLException {
+  
+  //之前分析过的代码
+  public <E> List<E> query(MappedStatement ms, Object parameter, RowBounds rowBounds, ResultHandler resultHandler) throws SQLException {
+    //获取一个可以执行的SQL以及相应参数和resultMap信息。
+    BoundSql boundSql = ms.getBoundSql(parameter);
+    //创建一个CacheKey
+    CacheKey key = createCacheKey(ms, parameter, rowBounds, boundSql);
+    //执行具体查询任务
+    return query(ms, parameter, rowBounds, resultHandler, key, boundSql);
+ }
+ 
+ // 添加了cache支持
+  public <E> List<E> query(MappedStatement ms, Object parameter, RowBounds rowBounds, ResultHandler resultHandler, CacheKey key, BoundSql boundSql) throws SQLException {
     ErrorContext.instance().resource(ms.getResource()).activity("executing a query").object(ms.getId());
     if (closed) {
       throw new ExecutorException("Executor was closed.");
@@ -1926,14 +1949,20 @@ MappedStatement:
     }
     return list;
   }
-
 ```
+
+这里再提醒一下，各个参数的来源：
+
+1. MappedStatement ms : 根据 (Mapper Interface + Method).getName() 获取的执行语句，它包含了SqlSource，ResultMaps等信息
+2. Object parameter: 给定执行的参数，如果套用Mapper Interface接口，则通过代理类整理成HashMap或者Bean。
+3. BoundSql boundSql: 通过MappedStatement#SqlSource构造出来的BoundSql，这个对象包含了执行SQL以及参数配置等信息。
 
 query基本的流程：
 
-1. 查询Session Cache是否命中
-2. 如果没有命中，则查询数据库
-3. 如果MyBatis配置的缓存级别是`STATEMENT`级别，则清空Session Cache。
+1. 准备待执行的BoundSql对象
+2. 查询Session Cache是否命中
+3. 如果没有命中，则查询数据库
+4. 如果MyBatis配置的缓存级别是`STATEMENT`级别，则清空Session Cache。
 
 那么重点就在`queryFromDatabase`这个函数中了:
 
@@ -1982,8 +2011,7 @@ query基本的流程：
   
 ```
 
-注意：默认的MyBatis配置获取的 `StatementHandler` 其实为 `PreparedStatement` 类型的Handler。接下来分析，
-都是基于`PreparedStatement`类型的Handler进行分析。
+注意：默认的MyBatis配置获取的 `StatementHandler` 其实为 `PreparedStatement` 类型的Handler。接下来分析，都是基于`PreparedStatement`类型的Handler进行分析。
 
 我们来看一下 `prepareStatement` 方法：
 
@@ -2028,6 +2056,7 @@ DefaultParameterHandler:
   @Override
   public void setParameters(PreparedStatement ps) {
     ErrorContext.instance().activity("setting parameters").object(mappedStatement.getParameterMap().getId());
+    //Sql语句自带的参数信息，如JavaType,JdbcType,TypeHandler,propertyName...
     List<ParameterMapping> parameterMappings = boundSql.getParameterMappings();
     if (parameterMappings != null) {
       for (int i = 0; i < parameterMappings.size(); i++) {
@@ -2035,69 +2064,34 @@ DefaultParameterHandler:
         if (parameterMapping.getMode() != ParameterMode.OUT) {
           Object value;
           String propertyName = parameterMapping.getProperty();
-          if (boundSql.hasAdditionalParameter(propertyName)) { // issue #448 ask first for additional params
-            value = boundSql.getAdditionalParameter(propertyName);
-          } else if (parameterObject == null) {
-            value = null;
-          } else if (typeHandlerRegistry.hasTypeHandler(parameterObject.getClass())) {
-            value = parameterObject;
-          } else {
-            MetaObject metaObject = configuration.newMetaObject(parameterObject);
-            value = metaObject.getValue(propertyName);
-          }
+          ...
+          
+          //构造一个MetaObject对象，相当于HashMap->{argName:argValue} 格式
+          //从 MetaObject对象中，获取SQL语句指定的属性名#{propertyName}对应的Value
+          MetaObject metaObject = configuration.newMetaObject(parameterObject);
+          value = metaObject.getValue(propertyName);
+          ...
           //一般来说，如果在MyBatis的SQL中，没有指定参数的类型，如#{age,javaType=int,jdbcType=NUMERIC,typeHandler=MyTypeHandler}
           //则会使用默认java.lang.Object的TypeHandler类型
           //这个TypeHandler会拿着参数类型，去TypeHandlerRegister中查询对应类型的TypeHandler
           TypeHandler typeHandler = parameterMapping.getTypeHandler();
-          JdbcType jdbcType = parameterMapping.getJdbcType();
-          if (value == null && jdbcType == null) {
-            jdbcType = configuration.getJdbcTypeForNull();
-          }
-          try {
-            //设置参数
-            typeHandler.setParameter(ps, i + 1, value, jdbcType);
-          } catch (TypeException e) {
-            throw new TypeException("Could not set parameters for mapping: " + parameterMapping + ". Cause: " + e, e);
-          } catch (SQLException e) {
-            throw new TypeException("Could not set parameters for mapping: " + parameterMapping + ". Cause: " + e, e);
-          }
+          ...
+          typeHandler.setParameter(ps, i + 1, value, jdbcType);
+          ...
         }
       }
     }
   }
 
-  
-BaseTypeHandler:
-
-   // java.lang.Object 类型的设置参数接口
-  @Override
-  public void setParameter(PreparedStatement ps, int i, T parameter, JdbcType jdbcType) throws SQLException {
-    if (parameter == null) {
-        // null 类型的参数设置
-    } else {
-       //设置非null类型的参数设置
-       setNonNullParameter(ps, i, parameter, jdbcType);
-    }
-    
-  }
-  // 设置非null的参数
-  @Override
-  public void setNonNullParameter(PreparedStatement ps, int i, Object parameter, JdbcType jdbcType)
-      throws SQLException {
-      // 根据参数的JavaType和JdbcType，获取具体指向的TypeHandler。
-    TypeHandler handler = resolveTypeHandler(parameter, jdbcType);
-    //设置参数
-    handler.setParameter(ps, i, parameter, jdbcType);
-  }
 ```
 
-参数处理的流程如下：
+参数处理的流程如下，主要依赖**BoundSql**对象：
 
-1. 获取到该Statement的parameterMapping信息（JavaType，JdbcType，TypeHandler）
-2. 调用parameterMapping#TypeHandler进行设置参数到SQL语句中
-3. 如果TypeHandler为java.lang.Object类型，则需要根据查询的具体参数类型，从 TypeHandlerRegister中获取TypeHandler。
+1. 获取BoundSql#parameterMappings，这个Map描述了SQL参数的信息，如：JavaType，JdbcType，TypeHandler，propertyName。
+2. 创建`MetaObject`对象包装请求的参数，以便获取SQL参数指定的 `propertyName` 。如果是Object则读取相应的Object#propertyName，如果是HashMap，则通过Map.get(propertyName)获取数值。
+3. 调用parameterMapping#TypeHandler进行设置Value到SQL语句中。如果TypeHandler为java.lang.Object类型，则需要根据Value类型，从 TypeHandlerRegister中获取具体的TypeHandler。
 
-这样子，就完成了对SQL Statement的参数设置是。
+这样子，就完成了对SQL Statement的参数设置。
 
 以上，就是MyBatis执行查询过程中，对查询语句的处理流程。而接下来，再看看执行和结果处理的流程，**回到`doQuery`**：
 
@@ -2156,7 +2150,7 @@ PreparedStatementHandler:
 
 一般来说，结果处理都使用默认的结果处理器`DefaultResultSetHandler`，通过它，可以完成返回结果集到Java对象的转换。
 
-首先看看单行对象的构建过程：
+首先看看单行数据的对象的构建过程：
 
 ```java
 
@@ -2182,19 +2176,18 @@ PreparedStatementHandler:
 
 ```
 
-而给定的ResultMap（初始化MyBatis的时候，对Mapper Xml解析而生成的，它关联在Statement上）为：
+而给定的MappedStatement#ResultMaps包含结果处理的所有信息：
 
 ![](C0D7.tmp.jpg)
 
 具体构造的流程如下：
 
-1. 读取Row信息
-2. 根据ResultMap中关于对象类型以及构造函数，封装一个对象
-3. 根据ResultMap中关于对象属性的描述，调用setProperty填写属性。
+1. 根据MappedStatement#ResultMaps中关于对象类型以及构造函数，封装一个对象
+2. 根据MappedStatement#ResultMaps中关于对象属性的描述，调用setProperty填写属性。
 
 注意：
 
-1. 构造对象的过程中，也同样会涉及到TypeHandler的处理，处理的基本逻辑和参数设置的逻辑一样。
+1. 构造对象的过程中，也同样会涉及到`TypeHandler`的处理，处理的基本逻辑和参数设置的逻辑一样。
 2. 因为**构造函数**无法获取类型信息，所以，需要强制在 resultMap#constructor#arg 中指定type属性。
 
 最佳实践：
@@ -2202,31 +2195,16 @@ PreparedStatementHandler:
 1. 尽量通过MyBatis通过JavaType查询TypeHandler，避免手动指定。
 2. MyBatis中使用无参数构造函数+setProperty 方式构造对象(避免指定Type属性)，而在Java中，通过全参数构造对象。
 
-以上，就是关于MyBatis执行流程的大致分析了，这个流程包括了：
+以上，就是关于MyBatis**执行流程**的大致分析了，这个流程包括了：
 
-1. Sql准备（动态Sql）
-2. 参数处理（涉及到TypeHandler）
-3. 缓存处理
-4. 语句执行
-5. 结果收集（涉及到TypeHandler）
+1. 从Configuration对象中，读取指定ID对应的MappedStatement语句。
+2. 给定调用参数，然后对MappedStatement#SqlSource进行处理（动态Sql），获取boundSql。
+2. 通过boundSql，获取一个执行语句，一般为 `PreparedStatement`。
+4. 通过boundSql，配置执行语句的参数信息。（涉及TypeHandler处理）
+5. 执行SQL语句
+6. 通过MappedStatement#ResultMaps，处理执行的结果。（涉及TypeHandler处理）
 
 通过了解执行过程，有助于我们了解MyBatis缓存，动态SQL，TypeHandler等机制。
-
-
-mybatis 执行sql过程：
-    0. 初始化所有的sql语句（加载xml的时候）
-    1. 通过参数构造作用域
-    2. 解析最初的sql语句（具有${}和#{}信息）
-        1. 遇到${}的时候，使用当前作用域中的属性(Object.toString())替换
-        2. 遇到<bind>，<include>#property-><sql> ，向当前作用域添加这个属性数值
-        3. 遇到#{}的时候，将当前这个参数加入到调用`参数列表`中。
-    3. 获取PreparedStatement，执行sql (SELECT * FROM id = ? 格式)，然后准备调用的参数(SELECT | UPDATE,INSERT,DELETE 语义上没有什么区别)
-        1. 读取`参数列表`
-        2. 使用MyBatis中的handlerType处理类型数值，然后设置到  PreparedStatement 中
-    4. 执行sql
-    5. 获取执行结果，然后构造JavaBean By resultMap
-
-
 
 ## 事务
 
