@@ -1121,7 +1121,7 @@ void parseStatement(Method method) {
 以上就是Mapper Interface 注册和Mapper Xml 解析的过程，而具体的XML如何解析可以查看`XMLMapperBuilder`进行分析。分析的结果分别保存在：
 
 1. Mapper Interface的代理类，保存在`MapperRegistry#knownMappers`中，供`SqlSession#getMapper`调用
-2. Mapper Xml 解析出来的语句，保存在`Configuration#mappedStatements`，`Configuration#resultMaps`，...，`Configuration#parameterMaps`中
+2. Mapper Xml 解析出来的SQL，缓存配置等信息，保存在`Configuration`中。
 
 最佳实践：
 
