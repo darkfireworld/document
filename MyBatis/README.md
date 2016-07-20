@@ -1982,6 +1982,9 @@ query基本的流程：
   
 ```
 
+注意：默认的MyBatis配置获取的 `StatementHandler` 其实为 `PreparedStatement` 类型的Handler。接下来分析，
+都是基于`PreparedStatement`类型的Handler进行分析。
+
 我们来看一下 `prepareStatement` 方法：
 
 ```java
@@ -2088,11 +2091,15 @@ BaseTypeHandler:
   }
 ```
 
+参数处理的流程如下：
 
+1. 获取到该Statement的parameterMapping信息（JavaType，JdbcType，TypeHandler）
+2. 调用parameterMapping#TypeHandler进行设置参数到SQL语句中
+3. 如果TypeHandler为java.lang.Object类型，则需要根据查询的具体参数类型，从 TypeHandlerRegister中获取TypeHandler。
 
-以上，就是MyBatis执行查询过程中，对查询语句的处理流程。
+这样子，就完成了对SQL Statement的参数设置是。
 
-而接下来，再看看执行和结果处理的流程，**回到`doQuery`**：
+以上，就是MyBatis执行查询过程中，对查询语句的处理流程。而接下来，再看看执行和结果处理的流程，**回到`doQuery`**：
 
 ```java
 
@@ -2113,11 +2120,97 @@ BaseTypeHandler:
 
 ```
 
+查看`query`代码的代码：
+
+
+```java
+
+RoutingStatementHandler:
+
+  @Override
+  public <E> List<E> query(Statement statement, ResultHandler resultHandler) throws SQLException {
+    //ps语句类型的代理
+    return delegate.<E>query(statement, resultHandler);
+  }
+  
+PreparedStatementHandler:
+
+  //具体 Ps语句执行的Handler
+  @Override
+  public <E> List<E> query(Statement statement, ResultHandler resultHandler) throws SQLException {
+    PreparedStatement ps = (PreparedStatement) statement;
+    //执行SQL
+    ps.execute();
+    //结果处理
+    return resultSetHandler.<E> handleResultSets(ps);
+  }
+
+```
+
+`query`涉及到两个过程：
+
+1. 执行JDBC查询
+2. 处理JDBC查询返回的结果。
+
+因为Jdbc查询的过程和原生的一致，这里就不进行查看了，重点关注 `handleResultSets`处理结果。
+
+一般来说，结果处理都使用默认的结果处理器`DefaultResultSetHandler`，通过它，可以完成返回结果集到Java对象的转换。
+
+首先看看单行对象的构建过程：
+
+```java
+
+// 按照行来处理返回的结果对象
+  private Object getRowValue(ResultSetWrapper rsw, ResultMap resultMap) throws SQLException {
+    final ResultLoaderMap lazyLoader = new ResultLoaderMap();
+    //根据 resultMap#constructor构造一个对象，如果没有constructor标签，则使用默认构造函数
+    Object resultObject = createResultObject(rsw, resultMap, lazyLoader, null);
+    if (resultObject != null && !hasTypeHandlerForResultObject(rsw, resultMap.getType())) {
+      final MetaObject metaObject = configuration.newMetaObject(resultObject);
+      boolean foundValues = !resultMap.getConstructorResultMappings().isEmpty();
+      if (shouldApplyAutomaticMappings(resultMap, false)) {
+        foundValues = applyAutomaticMappings(rsw, resultMap, metaObject, null) || foundValues;
+      }
+      //根据resultMap#result，设置对象的属性
+      foundValues = applyPropertyMappings(rsw, resultMap, metaObject, lazyLoader, null) || foundValues;
+      foundValues = lazyLoader.size() > 0 || foundValues;
+      resultObject = foundValues ? resultObject : null;
+      return resultObject;
+    }
+    return resultObject;
+  }
+
+```
+
+而给定的ResultMap（初始化MyBatis的时候，对Mapper Xml解析而生成的，它关联在Statement上）为：
+
+![](C0D7.tmp.jpg)
+
+具体构造的流程如下：
+
+1. 读取Row信息
+2. 根据ResultMap中关于对象类型以及构造函数，封装一个对象
+3. 根据ResultMap中关于对象属性的描述，调用setProperty填写属性。
+
+注意：
+
+1. 构造对象的过程中，也同样会涉及到TypeHandler的处理，处理的基本逻辑和参数设置的逻辑一样。
+2. 因为**构造函数**无法获取类型信息，所以，需要强制在 resultMap#constructor#arg 中指定type属性。
 
 最佳实践：
 
 1. 尽量通过MyBatis通过JavaType查询TypeHandler，避免手动指定。
-2. MyBatis中使用无参数构造函数+setProperty 方式构造对象，而在Java中，通过全参数构造对象。
+2. MyBatis中使用无参数构造函数+setProperty 方式构造对象(避免指定Type属性)，而在Java中，通过全参数构造对象。
+
+以上，就是关于MyBatis执行流程的大致分析了，这个流程包括了：
+
+1. Sql准备（动态Sql）
+2. 参数处理（涉及到TypeHandler）
+3. 缓存处理
+4. 语句执行
+5. 结果收集（涉及到TypeHandler）
+
+通过了解执行过程，有助于我们了解MyBatis缓存，动态SQL，TypeHandler等机制。
 
 
 mybatis 执行sql过程：
