@@ -1809,7 +1809,7 @@ public interface Executor {
 
 ```
 
-可以看到 `Executor`对象一些基本的功能：update，query，commit，rollback等。
+可以看到 `Executor`对象一些基本的功能：update，query，commit，rollback等，相当于Jdbc的Connection。
 
 注意：通过API可以发现MyBatis中SQL语句可以分为两类：
 
@@ -1886,6 +1886,238 @@ MappedStatement:
 **注意：${} 表示动态SQL占用符，而#{}表示一个参数占用符。**
 
 #### query
+
+如下是query的代码：
+
+```java
+ public <E> List<E> query(MappedStatement ms, Object parameter, RowBounds rowBounds, ResultHandler resultHandler, CacheKey key, BoundSql boundSql) throws SQLException {
+    ErrorContext.instance().resource(ms.getResource()).activity("executing a query").object(ms.getId());
+    if (closed) {
+      throw new ExecutorException("Executor was closed.");
+    }
+    if (queryStack == 0 && ms.isFlushCacheRequired()) {
+      clearLocalCache();
+    }
+    List<E> list;
+    try {
+      queryStack++;
+      //查询缓存
+      list = resultHandler == null ? (List<E>) localCache.getObject(key) : null;
+      if (list != null) {
+        handleLocallyCachedOutputParameters(ms, key, parameter, boundSql);
+      } else {
+        //查询数据库
+        list = queryFromDatabase(ms, parameter, rowBounds, resultHandler, key, boundSql);
+      }
+    } finally {
+      queryStack--;
+    }
+    if (queryStack == 0) {
+      for (DeferredLoad deferredLoad : deferredLoads) {
+        deferredLoad.load();
+      }
+      // issue #601
+      deferredLoads.clear();
+      if (configuration.getLocalCacheScope() == LocalCacheScope.STATEMENT) {
+        //如果缓存级别是语句级别的，则清空缓存
+        // issue #482
+        clearLocalCache();
+      }
+    }
+    return list;
+  }
+
+```
+
+query基本的流程：
+
+1. 查询Session Cache是否命中
+2. 如果没有命中，则查询数据库
+3. 如果MyBatis配置的缓存级别是`STATEMENT`级别，则清空Session Cache。
+
+那么重点就在`queryFromDatabase`这个函数中了:
+
+```java
+
+  private <E> List<E> queryFromDatabase(MappedStatement ms, Object parameter, RowBounds rowBounds, ResultHandler resultHandler, CacheKey key, BoundSql boundSql) throws SQLException {
+    List<E> list;
+    localCache.putObject(key, EXECUTION_PLACEHOLDER);
+    try {
+      list = doQuery(ms, parameter, rowBounds, resultHandler, boundSql);
+    } finally {
+      localCache.removeObject(key);
+    }
+    localCache.putObject(key, list);
+    if (ms.getStatementType() == StatementType.CALLABLE) {
+      localOutputParameterCache.putObject(key, parameter);
+    }
+    return list;
+  }
+  
+```
+
+可见`queryFromDatabase`并没有执行具体的查询功能，而是添加了**缓存的管理**。而 `doQuery`是一个抽象方法，我们打一下断点看看具体执行情况：
+
+![](A25C.tmp.jpg)
+
+可见，这里使用了`SimpleExecutor`这个执行器：
+
+```java
+
+  @Override
+  public <E> List<E> doQuery(MappedStatement ms, Object parameter, RowBounds rowBounds, ResultHandler resultHandler, BoundSql boundSql) throws SQLException {
+    Statement stmt = null;
+    try {
+      Configuration configuration = ms.getConfiguration();
+      //根据执行的类型 STATEMENT PREPARED CALLABLE 获取一个handler，一般来说，我们获取到预处理语句类型的Handler
+      StatementHandler handler = configuration.newStatementHandler(wrapper, ms, parameter, rowBounds, resultHandler, boundSql);
+      //根据handler，获取一个stmt执行语句
+      stmt = prepareStatement(handler, ms.getStatementLog());
+      //执行查询，并且获取结果
+      return handler.<E>query(stmt, resultHandler);
+    } finally {
+      closeStatement(stmt);
+    }
+  }
+  
+```
+
+我们来看一下 `prepareStatement` 方法：
+
+```java
+
+ //获取一个连接
+ protected Connection getConnection(Log statementLog) throws SQLException {
+    //从当前事务中获取一个连接
+    Connection connection = transaction.getConnection();
+    if (statementLog.isDebugEnabled()) {
+      return ConnectionLogger.newInstance(connection, statementLog, queryStack);
+    } else {
+      return connection;
+    }
+  }
+  // 准备待执行sql语句
+  private Statement prepareStatement(StatementHandler handler, Log statementLog) throws SQLException {
+    Statement stmt;
+    //获取一个连接
+    Connection connection = getConnection(statementLog);
+    //构造出执行的语句
+    stmt = handler.prepare(connection, transaction.getTimeout());
+    //参数处理
+    handler.parameterize(stmt);
+    return stmt;
+  }
+
+```
+
+可见`prepareStatement`主要做了：
+
+1. 从当前事务中获取一个连接
+2. 从获取的连接中，构造出执行的SQL语句
+3. 填写参数到SQL语句中
+
+我们在看看`parameterize`方法：
+
+```java
+DefaultParameterHandler:
+
+  //根据传入的参数类型和Jdbc类型，设置合适的参数到 PreparedStatement 语句中
+  @Override
+  public void setParameters(PreparedStatement ps) {
+    ErrorContext.instance().activity("setting parameters").object(mappedStatement.getParameterMap().getId());
+    List<ParameterMapping> parameterMappings = boundSql.getParameterMappings();
+    if (parameterMappings != null) {
+      for (int i = 0; i < parameterMappings.size(); i++) {
+        ParameterMapping parameterMapping = parameterMappings.get(i);
+        if (parameterMapping.getMode() != ParameterMode.OUT) {
+          Object value;
+          String propertyName = parameterMapping.getProperty();
+          if (boundSql.hasAdditionalParameter(propertyName)) { // issue #448 ask first for additional params
+            value = boundSql.getAdditionalParameter(propertyName);
+          } else if (parameterObject == null) {
+            value = null;
+          } else if (typeHandlerRegistry.hasTypeHandler(parameterObject.getClass())) {
+            value = parameterObject;
+          } else {
+            MetaObject metaObject = configuration.newMetaObject(parameterObject);
+            value = metaObject.getValue(propertyName);
+          }
+          //一般来说，如果在MyBatis的SQL中，没有指定参数的类型，如#{age,javaType=int,jdbcType=NUMERIC,typeHandler=MyTypeHandler}
+          //则会使用默认java.lang.Object的TypeHandler类型
+          //这个TypeHandler会拿着参数类型，去TypeHandlerRegister中查询对应类型的TypeHandler
+          TypeHandler typeHandler = parameterMapping.getTypeHandler();
+          JdbcType jdbcType = parameterMapping.getJdbcType();
+          if (value == null && jdbcType == null) {
+            jdbcType = configuration.getJdbcTypeForNull();
+          }
+          try {
+            //设置参数
+            typeHandler.setParameter(ps, i + 1, value, jdbcType);
+          } catch (TypeException e) {
+            throw new TypeException("Could not set parameters for mapping: " + parameterMapping + ". Cause: " + e, e);
+          } catch (SQLException e) {
+            throw new TypeException("Could not set parameters for mapping: " + parameterMapping + ". Cause: " + e, e);
+          }
+        }
+      }
+    }
+  }
+
+  
+BaseTypeHandler:
+
+   // java.lang.Object 类型的设置参数接口
+  @Override
+  public void setParameter(PreparedStatement ps, int i, T parameter, JdbcType jdbcType) throws SQLException {
+    if (parameter == null) {
+        // null 类型的参数设置
+    } else {
+       //设置非null类型的参数设置
+       setNonNullParameter(ps, i, parameter, jdbcType);
+    }
+    
+  }
+  // 设置非null的参数
+  @Override
+  public void setNonNullParameter(PreparedStatement ps, int i, Object parameter, JdbcType jdbcType)
+      throws SQLException {
+      // 根据参数的JavaType和JdbcType，获取具体指向的TypeHandler。
+    TypeHandler handler = resolveTypeHandler(parameter, jdbcType);
+    //设置参数
+    handler.setParameter(ps, i, parameter, jdbcType);
+  }
+```
+
+
+
+以上，就是MyBatis执行查询过程中，对查询语句的处理流程。
+
+而接下来，再看看执行和结果处理的流程，**回到`doQuery`**：
+
+```java
+
+  @Override
+  public <E> List<E> doQuery(MappedStatement ms, Object parameter, RowBounds rowBounds, ResultHandler resultHandler, BoundSql boundSql) throws SQLException {
+    Statement stmt = null;
+    try {
+      Configuration configuration = ms.getConfiguration();
+      StatementHandler handler = configuration.newStatementHandler(wrapper, ms, parameter, rowBounds, resultHandler, boundSql);
+      stmt = prepareStatement(handler, ms.getStatementLog());
+      //执行SQL语句，并且整理结果
+      return handler.<E>query(stmt, resultHandler);
+    } finally {
+      closeStatement(stmt);
+    }
+  }
+
+
+```
+
+
+最佳实践：
+
+1. 尽量通过MyBatis通过JavaType查询TypeHandler，避免手动指定。
+2. MyBatis中使用无参数构造函数+setProperty 方式构造对象，而在Java中，通过全参数构造对象。
 
 
 mybatis 执行sql过程：
