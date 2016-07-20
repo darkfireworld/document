@@ -1314,7 +1314,7 @@ public void parseStatementNode() {
 4. statementType：语句的类型，如SELECT，UPDATE...
 
 
-所以可以说，一个`MappedStatement`代表着XML中的SQL语句信息。当然了，Mapper Xml 中还包含了一些其他信息，这些信息都保存在`Configuration`对象中。
+所以可以说，一个`MappedStatement`代表着XML中一句SQL语句信息。当然了，Mapper Xml 中还包含了一些其他信息，这些信息都保存在`Configuration`对象中。
 
 
 ### Mapper Call
