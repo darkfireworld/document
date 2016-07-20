@@ -2195,7 +2195,10 @@ PreparedStatementHandler:
 1. 尽量通过MyBatis通过JavaType查询TypeHandler，避免手动指定。
 2. MyBatis中使用无参数构造函数+setProperty 方式构造对象(避免指定Type属性)，而在Java中，通过全参数构造对象。
 
-以上，就是关于MyBatis**执行流程**的大致分析了，这个流程包括了：
+#### 执行流程总结
+
+
+一下是MyBatis执行流程的大致描述：
 
 1. 从Configuration对象中，读取指定ID对应的MappedStatement语句。
 2. 给定调用参数，然后对MappedStatement#SqlSource进行处理（动态Sql），获取boundSql。
