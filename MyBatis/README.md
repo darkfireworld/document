@@ -1598,9 +1598,10 @@ public Object getNamedParams(Object[] args) {
 2. 如果没有参数，则返回null，如果仅仅只有一个参数且没有添加@Param注解，则直接返回。否则使用HashMap记录参数信息。
 3. 默认添加 **param1，param2 ... paramN** 参数信息到HashMap中。
 
-当调用的参数构造完成后，  `MapperMethod` 会调用之前绑定的`SqlSession`来执行具体的sql（Type.getName()+ Method.getName()）。
+**Mapper Interface相当于一层sqlSession的Java壳：**
 
-**综上所述：Mapper Interface 相当于调用MyBatis SQL时候的一层Java壳。**
+1. 它封装了调用的参数和执行返回的结果。
+2. 它会调用 (Mapper Interface + Method).getName()为ID的MyBatis SQL语句。
 
 ### Execute
 
