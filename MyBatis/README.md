@@ -959,8 +959,8 @@ private <T> TypeHandler<T> getTypeHandler(Type type, JdbcType jdbcType) {
 }
 ```
 
-`TypeHandlerRegistry`就是MyBatis的`TypeHandler`注册中心。
-
+注意：通过JavaType和JdbcType获取一个TypeHandler的时候，如果JavaType为enum，且`TypeHandlerRegistry`中没有注册相对应的`TypeHandler`，则会
+返回`EnumTypeHandler((Class<?>) type)`。
 
 ### Mapper
 
