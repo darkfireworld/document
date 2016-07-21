@@ -740,7 +740,7 @@ root 相当于一个容器，并且记录一些通用的属性信息，比如说
     <version>1.0-SNAPSHOT</version>
     <!--打包模式为pom-->
     <packaging>pom</packaging>
-    <!--子模块-->
+    <!--子模块信息-->
     <modules>
         <module>io</module>
         <module>biz</module>
@@ -803,6 +803,8 @@ root 相当于一个容器，并且记录一些通用的属性信息，比如说
 
 ```
 
+通过`modules`标签，声明了项目中各个子模块的信息。
+
 **注意配置`packaging`为pom类型。**
 
 ### io module
@@ -815,15 +817,12 @@ io module 相当于数据接入层，用于和数据库，restful api 交互的�
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-    <!--继承父POM-->
+    <!--依赖的父POM信息-->
     <parent>
-        <!--父项目构件组信息-->
         <groupId>org.darkfireworld</groupId>
-        <!--父项目构件信息-->
         <artifactId>maven-multi-project</artifactId>
-        <!--父项目版本信息->
         <version>1.0-SNAPSHOT</version>
-        <!--父项目相对路径-->
+        <!--父POM相对信息-->
         <relativePath/>    
     </parent>
     <modelVersion>4.0.0</modelVersion>
@@ -835,14 +834,14 @@ io module 相当于数据接入层，用于和数据库，restful api 交互的�
 
 ```
 
-通过`parent`标签，声明了当前项目依赖的父项目，而**查询的父项目的过程**为：
+通过`parent`标签，可以继承父POM信息，**查询父POM的过程如下**：
 
 1. 查询默认位置 ../pom.xml 。
 2. 查询`relativePath`元素指定的位置。
 3. 查询本地仓库
 4. 查询远程仓库
 
-这样子，当前项目就继承了父项目。
+这样子，当前项目就继承了父POM信息（依赖，groupId，propertys，modules ...）。
 
 ### biz module
 
@@ -929,6 +928,19 @@ ctrl module 相当于mvc模块，用于接入http请求等，pom.xml为：
 解压war查看内容，可以发现是一个标准的war项目，并且已经打包了依赖的 `io，biz` jar包：
 
 ![war-lib](8DA7.tmp.jpg)
+
+### parent 和 modules
+
+多模块构建，其实是依赖`parent`和`modules`标签实现的：
+
+1. parent:指定了需要继承的父POM坐标信息。
+2. modules:指定了项目中，各个子模块的信息
+
+这样子，各个子模块都知道了彼此的存在，从而可以项目引用。
+
+注意：`parent`标签不一定要和`modules`标签一起使用，比如说：指定公共的依赖信息等。
+
+
 
 项目地址：[maven-multi-project](maven-multi-project.zip)
 
