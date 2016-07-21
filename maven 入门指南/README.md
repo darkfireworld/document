@@ -738,7 +738,7 @@ root 相当于一个容器，并且记录一些通用的属性信息，比如说
     <groupId>org.darkfireworld</groupId>
     <artifactId>maven-multi-project</artifactId>
     <version>1.0-SNAPSHOT</version>
-    <!--打包模式为pom-->
+    <!--打包模式为pom!!-->
     <packaging>pom</packaging>
     <!--子模块信息-->
     <modules>
@@ -803,9 +803,7 @@ root 相当于一个容器，并且记录一些通用的属性信息，比如说
 
 ```
 
-通过`modules`标签，声明了项目中各个子模块的信息。
-
-**注意配置`packaging`为pom类型。**
+**通过`modules`标签，声明了项目中各个子模块的信息。**
 
 ### io module
 
@@ -842,6 +840,8 @@ io module 相当于数据接入层，用于和数据库，restful api 交互的�
 4. 查询远程仓库
 
 这样子，当前项目就继承了父POM信息（依赖，groupId，propertys，modules ...）。
+
+**注意：继承的父POM.xml的`packaging`最好为`POM`类型。**
 
 ### biz module
 
