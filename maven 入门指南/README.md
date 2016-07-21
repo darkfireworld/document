@@ -940,7 +940,14 @@ ctrl module 相当于mvc模块，用于接入http请求等，pom.xml为：
 
 **注意：`parent`标签不一定要和`modules`标签一起使用，比如说：指定公共的依赖信息等。**
 
+### dependencyManagement 和 dependencies
 
+`dependencyManagement` 和 `dependencies` 都可以定义依赖，主要区别在于：
+
+* dependencyManagement：通过在父POM中定义依赖信息，然后需要在子POM中**显示地引用（不需version信息）**。
+* dependencies：通过在父POM中定义依赖信息，所有的子POM默认继承这些依赖信息。
+
+一般来说在父POM中，通过`dependencyManagement`规范引用依赖的版本信息，而通过`dependencies`定义所有子模块都需要的依赖，如：junit。
 
 项目地址：[maven-multi-project](maven-multi-project.zip)
 
