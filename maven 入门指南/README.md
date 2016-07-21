@@ -815,10 +815,16 @@ io module 相当于数据接入层，用于和数据库，restful api 交互的�
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <!--继承父POM-->
     <parent>
-        <artifactId>maven-multi-project</artifactId>
+        <!--父项目构件组信息-->
         <groupId>org.darkfireworld</groupId>
+        <!--父项目构件信息-->
+        <artifactId>maven-multi-project</artifactId>
+        <!--父项目版本信息->
         <version>1.0-SNAPSHOT</version>
+        <!--父项目相对路径-->
+        <relativePath/>    
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
@@ -828,6 +834,15 @@ io module 相当于数据接入层，用于和数据库，restful api 交互的�
 </project>
 
 ```
+
+通过`parent`标签，声明了当前项目依赖的父项目，而**查询的父项目的过程**为：
+
+1. 查询默认位置 ../pom.xml 。
+2. 查询`relativePath`元素指定的位置。
+3. 查询本地仓库
+4. 查询远程仓库
+
+这样子，当前项目就继承了父项目。
 
 ### biz module
 
