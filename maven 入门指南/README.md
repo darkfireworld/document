@@ -841,7 +841,7 @@ io module 相当于数据接入层，用于和数据库，restful api 交互的�
 
 这样子，当前项目就继承了父POM信息（依赖，groupId，propertys，modules ...）。
 
-**注意：继承的父POM.xml的`packaging`最好为`POM`类型。**
+**注意：继承的父pom.xml的`packaging`最好为`pom`类型。**
 
 ### biz module
 
