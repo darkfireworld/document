@@ -53,6 +53,10 @@ HTTPS 可以算是现今信息安全的基石之一了，采用SSL进行传输�
 
 HTTPS协议能防护大部分的网络攻击，在构建Web站点的时候，建议对关键资源进行HTTPS协议传输。
 
+## 总结
+
+**最佳实践：不信任任何数据。**
+
 ## 参考
 
 * [理解OAuth 2.0](http://www.ruanyifeng.com/blog/2014/05/oauth_2_0.html)
