@@ -1991,10 +1991,14 @@ PreparedStatementHandler:
 
 ![](C0D7.tmp.jpg)
 
-具体构造的流程如下：
+注意：如果**select#resultType='int'**，则**resultMap#type=java.lang.Integer**。
 
-1. 根据MappedStatement#ResultMaps中关于对象类型以及构造函数，封装一个对象
-2. 根据MappedStatement#ResultMaps中关于对象属性的描述，调用setProperty填写属性。
+构造对象流程：
+
+1. **createResultObject**根据`resultMap#type`属性，创建一个对象。
+    1. 如果mybatis中存在`resultMap#type`指向的**TypeHandler**，则直接使用该TypeHandler进行构造（包括设置属性）。
+    2. 否则，则创建一个Object（使用**默认构造函数**或者resultMap指定的构造函数创建Object）。
+2. 通过**applyPropertyMappings**方法，设置对象的具体属性。
 
 注意：
 
