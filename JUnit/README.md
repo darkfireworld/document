@@ -13,6 +13,8 @@ JUnit的安装和使用都非常的简单。这里使用**IDEA+Maven**演示。
 
 ![](DB1A.tmp.jpg)
 
+注意：**`TestCase`需要在`src/test/java`下编写。**
+
 **添加JUnit4.x依赖**
 
 ```
@@ -27,8 +29,6 @@ JUnit的安装和使用都非常的简单。这里使用**IDEA+Maven**演示。
 ```
 
 这样子，就算完成了JUnit的基本安装。
-
-注意：**`TestCase`需要在`src/test/java`下编写。**
 
 **TestCase**
 
