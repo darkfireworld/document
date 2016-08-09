@@ -11,7 +11,7 @@ JUnit的安装和使用都非常的简单。这里使用**IDEA+Maven**演示。
 
 使用Idea和Maven创建一个最简单的Java项目：
 
-![](A0F1.tmp.jpg)
+![](DB1A.tmp.jpg)
 
 **添加JUnit4.x依赖**
 
@@ -28,7 +28,9 @@ JUnit的安装和使用都非常的简单。这里使用**IDEA+Maven**演示。
 
 这样子，就算完成了JUnit的基本安装。
 
-**例子**
+注意：**`TestCase`需要在`src/test/java`下编写。**
+
+**TestCase**
 
 ```java
 
