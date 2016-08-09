@@ -315,7 +315,7 @@ public class ArticleCtrlTest extends SpringTest {
 
 以上，就是一个简单的Spring MVC测试用例。对于Dao或者Service测试就更加简单了。
 
-注意：**getTest的事务会进行回滚操作，不会真正的写入数据库。**
+注意：**getTest()的事务会进行回滚操作，不会真正的写入数据库。**
 
 **运行截图**
 
@@ -569,6 +569,7 @@ SpringJUnit4ClassRunner继承于BlockJUnit4ClassRunner对象，通过重写`构�
 3. 切勿@Test函数相互调用。
 4. 合理使用测试基类（如：SpringTest）。
 5. 覆盖率：业务类型>=60%，工具类型>=80%。
+6. 写入数据需要回滚，避免污染数据库。
 
 ## 参考
 
