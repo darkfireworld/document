@@ -320,24 +320,254 @@ public class ArticleCtrlTest extends SpringTest {
 
 ![](A2B4.tmp.jpg)
 
+项目地址：[java-fast-framework](https://github.com/darkfireworld/java-fast-framework.git)
 
-## 源码分析
+## 执行流程
 
-每次调用@Test，都会新建对象
+JUnit的测试流程大致如下：
 
-Spring ApplicationContext 对象复用
+1. 指定需要测试的`TestCase`。假如采用Maven构建，则默认为所有`/src/test/java/**Test`类。
+2. JUnit加载`TestCase`的@RunWith指向的`Runner`。默认为：`BlockJUnit4ClassRunner`。
+3. JUnit实例化`Runner`，然后调用`Runner#run(RunNotifier notifier)`方法，测试指定的`TestCase`。注意：Runner需要拥有一个`Runner(Class clz)`类型的构造函数。
+4. `Runner`通过`notifier`记录方法执行结果。
+5. JUnit收集所有`TestCase`的执行结果，然后打印报告。
 
+**注意：JUnit读取`TestCase`注解(@RunWith,@Test...)的时候，会遍历`TestCase`整个继承链。**
+
+### BlockJUnit4ClassRunner
+
+我们以`BlockJUnit4ClassRunner`这个Runner分析具体`Runner#run`的过程：
+
+```java
+
+ParentRunner:
+    
+    //对指定的TestCase进行检测
+    @Override
+    public void run(final RunNotifier notifier) {
+        EachTestNotifier testNotifier = new EachTestNotifier(notifier,
+                getDescription());
+        try {
+            //创造一个执行Block
+            Statement statement = classBlock(notifier);
+            //执行具体的Block
+            statement.evaluate();
+        } catch (AssumptionViolatedException e) {
+            testNotifier.addFailedAssumption(e);
+        } catch (StoppedByUserException e) {
+            throw e;
+        } catch (Throwable e) {
+            testNotifier.addFailure(e);
+        }
+    }
+    
+ParentRunner:
+    
+    //创建执行Block
+    protected Statement classBlock(final RunNotifier notifier) {
+        //获取待执行的语句，BlockJUnit4ClassRunner 为执行所有@Test方法语句
+        Statement statement = childrenInvoker(notifier);
+        if (!areAllChildrenIgnored()) {
+            //处理@BeforeClass
+            statement = withBeforeClasses(statement);
+            //处理@AfterClass
+            statement = withAfterClasses(statement);
+            //处理@ClassRule
+            statement = withClassRules(statement);
+        }
+        return statement;
+    }
+    
+ParentRunner:
+    //构造一个通过Statement，这个Statement具体执行的时候，会调用runChildren方法。
+    protected Statement childrenInvoker(final RunNotifier notifier) {
+        return new Statement() {
+            @Override
+            public void evaluate() {
+                //语句被调用执行的时候，会真正的执行函数
+                runChildren(notifier);
+            }
+        };
+    }
+```
+
+这样子，就完成了`Statement`的构造过程。然后我们再看一下刚刚创建出来的`Statement#evaluate`函数：
+
+```java
+
+ParentRunner:
+    //构造一个通过Statement，这个Statement具体执行的时候，会调用runChildren方法。
+    protected Statement childrenInvoker(final RunNotifier notifier) {
+        return new Statement() {
+            @Override
+            public void evaluate() {
+                //语句被调用执行的时候，会真正的执行函数
+                runChildren(notifier);
+            }
+        };
+    }
+
+ParentRunner:
+    //具体执行的过程
+    private void runChildren(final RunNotifier notifier) {
+        //获取当前的调度器，默认为主线程测试
+        final RunnerScheduler currentScheduler = scheduler;
+        try {
+            //获取要测试的对象
+            for (final T each : getFilteredChildren()) {
+                currentScheduler.schedule(new Runnable() {
+                    public void run() {
+                        //进行刚刚给定的对象
+                        ParentRunner.this.runChild(each, notifier);
+                    }
+                });
+            }
+        } finally {
+            currentScheduler.finished();
+        }
+    }
+    
+```
+
+上述的执行过程中，涉及到两个点：
+
+* getFilteredChildren：获取待测试的对象集合
+* runChild：进行具体的测试
+
+我们，先看看`getFilteredChildren`方法：
+
+```java
+
+ParentRunner:
+    //获取要执行的对象集合
+    private Collection<T> getFilteredChildren() {
+        if (filteredChildren == null) {
+            synchronized (childrenLock) {
+                if (filteredChildren == null) {
+                    //通过getChildren方法，委托子类，然后获取具体要测试的对象信息
+                    filteredChildren = Collections.unmodifiableCollection(getChildren());
+                }
+            }
+        }
+        return filteredChildren;
+    }
+    
+BlockJUnit4ClassRunner:
+    
+    //父类ParentRunner#getChildren具体实现方法，用来搜集执行对象信息
+    @Override
+    protected List<FrameworkMethod> getChildren() {
+        return computeTestMethods();
+    }
+    
+BlockJUnit4ClassRunner:
+
+    //搜索@Test方法信息
+    protected List<FrameworkMethod> computeTestMethods() {
+        //搜索@Test方法信息，包括所有的父类
+        return getTestClass().getAnnotatedMethods(Test.class);
+    }
+
+```
+
+这样子，就搜集了待测试的@Test方法对象集合。然后，我们在看看具体的测试`runChild`：
+
+```java
+
+BlockJUnit4ClassRunner:
+
+    @Override
+    protected void runChild(final FrameworkMethod method, RunNotifier notifier) {
+        Description description = describeChild(method);
+        //判断这个对象是否@Ignored
+        if (isIgnored(method)) {
+            notifier.fireTestIgnored(description);
+        } else {
+            //1. 根据这个对象，通过methodBlock创建执行Block
+            //2. 执行这个Block
+            runLeaf(methodBlock(method), description, notifier);
+        }
+    }
+    
+BlockJUnit4ClassRunner:
+
+    //创建待执行的Block
+    protected Statement methodBlock(FrameworkMethod method) {
+        Object test;
+        try {
+            //构造一个新的对象！！
+            //也就是说，一个@Test方法对应一个对象
+            test = new ReflectiveCallable() {
+                @Override
+                protected Object runReflectiveCall() throws Throwable {
+                    return createTest();
+                }
+            }.run();
+        } catch (Throwable e) {
+            return new Fail(e);
+        }
+
+        Statement statement = methodInvoker(method, test);
+        //处理@Test#expected
+        statement = possiblyExpectingExceptions(method, test, statement);
+        //处理@Test#timeout
+        statement = withPotentialTimeout(method, test, statement);
+        //处理@Before
+        statement = withBefores(method, test, statement);
+        //处理@After
+        statement = withAfters(method, test, statement);
+        //处理@Rule
+        statement = withRules(method, test, statement);
+        return statement;
+    }
+    
+BlockJUnit4ClassRunner:
+
+    //执行刚刚创建的Block
+    protected final void runLeaf(Statement statement, Description description,
+            RunNotifier notifier) {
+        EachTestNotifier eachNotifier = new EachTestNotifier(notifier, description);
+        eachNotifier.fireTestStarted();
+        try {
+            //执行
+            statement.evaluate();
+        } catch (AssumptionViolatedException e) {
+            eachNotifier.addFailedAssumption(e);
+        } catch (Throwable e) {
+            eachNotifier.addFailure(e);
+        } finally {
+            eachNotifier.fireTestFinished();
+        }
+    }
+```
+
+**注意：`BlockJUnit4ClassRunner#methodBlock`可以发现，每测试一个@Test方法，都会创建一个对象。**
+
+到此，`BlockJUnit4ClassRunner#Runner#run(RunNotifier notifier)`的运行流程，就基本分析完毕了。
+
+### SpringJUnit4ClassRunner
+
+Spring 通过`SpringJUnit4ClassRunner`来支持JUnit。通过`SpringJUnit4ClassRunner`，我们可以实现如下特性：
+
+1. ApplicationContext仅仅初始化一次。
+2. SpringMVC 支持
+3. @Autowired 支持
+4. @Transactional和@Rollback支持
+
+SpringJUnit4ClassRunner继承于BlockJUnit4ClassRunner对象，通过重写`构造函数`和`createTest`来实现了以上的特性：
+
+1. **构造函数**：ApplicationContext仅仅初始化一次。
+2. **createTest**：@Autowired IOC支持 和 @Transactional和@Rollback 等AOP支持。
 
 ## 最佳实践
 
 这里总结一下JUnit最佳实践：
 
-1. 测试目标为：Dao，Service，Controller层。
-2. 一个类，一个测试类；一个函数，一个测试函数；
-3. 命名规则： ClassNameTest 和 FunctionNameTest。
-4. 切勿@Test函数相互调用。
-5. 合理使用测试基类（如：SpringTest）。
-6. 覆盖率：业务类型>=60%，工具类型>=80%。
+1. 一个类，一个测试类；一个函数，一个测试函数；
+2. 命名规则： ClassNameTest 和 FunctionNameTest。
+3. 切勿@Test函数相互调用。
+4. 合理使用测试基类（如：SpringTest）。
+5. 覆盖率：业务类型>=60%，工具类型>=80%。
 
 ## 参考
 
