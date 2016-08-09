@@ -329,7 +329,7 @@ JUnit的测试流程大致如下：
 1. 指定需要测试的`TestCase`。假如采用Maven构建，则默认为所有`/src/test/java/**Test`类。
 2. JUnit加载`TestCase`的@RunWith指向的`Runner`。默认为：`BlockJUnit4ClassRunner`。
 3. JUnit实例化`Runner`，然后调用`Runner#run(RunNotifier notifier)`方法，测试指定的`TestCase`。注意：Runner需要拥有一个`Runner(Class clz)`类型的构造函数。
-4. `Runner`通过`notifier`记录方法执行结果。
+4. `Runner`在测试过程中，通过`notifier`记录测试结果。
 5. JUnit收集所有`TestCase`的执行结果，然后打印报告。
 
 **注意：JUnit读取`TestCase`注解(@RunWith,@Test...)的时候，会遍历`TestCase`整个继承链。**
