@@ -154,6 +154,7 @@ CONSTRUCT CALL 2
 使用JUnit的时候，有时候，需要自定义启动器（Runner）。这时候，我们可以通过`@RunWith`注解，来指定当前`TestCase`的Runner。
 我们经常使用如下的Runner：
 
+* BlockJUnit4ClassRunner: 默认Runner
 * Suite : 测试套件
 * Parameterized : 参数化测试
 * SpringJUnit4ClassRunner : Spring针对JUnit4.x的测试框架
