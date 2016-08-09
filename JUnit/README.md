@@ -3,7 +3,7 @@
 JJUnit是用于编写和运行可重复的自动化测试的开源测试框架， 这样可以保证我们的代码按预期工作。
 JUnit可广泛用于工业和作为支架(从命令行)或IDE(如Eclipse)内单独的Java程序。
 
-## 入门
+## 基础知识
 
 JUnit的安装和使用都非常的简单。这里使用**IDEA+Maven**演示。
 
@@ -145,9 +145,16 @@ CONSTRUCT CALL 2
 
 可以发现，JUnit的**生命周期**和注释保持一致。
 
-## 提升
+## 扩展知识
 
-在上面小节，我们了解了JUnit的基本使用。我们现在来说一说JUnit的其他高级一点的内容。
+### @RunWith
+
+使用JUnit的时候，有时候，需要自定义启动器（Runner）。这时候，我们可以通过`@RunWith`注解，来指定当前`TestCase`的Runner。
+我们经常使用如下的Runner：
+
+* Suite : 测试套件
+* Parameterized : 参数化测试
+* SpringJUnit4ClassRunner : Spring针对JUnit4.x的测试框架
 
 ### JUnitCore
 
@@ -209,20 +216,131 @@ public class Main {
 
 ## Spring 整合
 
+
+**依赖**
+
+Spring提供了`spring-test`来支持JUnit的测试框架。引入依赖：
+
+```
+    <dependency>
+        <groupId>org.springframework</groupId>
+        <artifactId>spring-test</artifactId>
+        <version>${spring-version}</version>
+    </dependency>
+
+```
+
+**SpringTest**
+
+**为了避免每个`TestCase`都添加@RunWith等注解，这里引入`SpringTest`方便`TestCase编写`**：
+
+```java
+
+//http://docs.spring.io/spring/docs/current/spring-framework-reference/htmlsingle/#testing
+
+//Spring针对JUnit4.x的支持Runner
+@RunWith(SpringJUnit4ClassRunner.class)
+//Spring配置类
+@ContextConfiguration(classes = {SpringConf.class})
+//支持Spring MVC
+@WebAppConfiguration
+//默认回滚
+@Rollback
+//默认事务
+@Transactional
+public abstract class SpringTest {
+    
+    //Spring 上下文
+    @Autowired
+    private WebApplicationContext wac;
+    //Spring MVC测试支持类
+    private MockMvc mockMvc;
+
+
+    @Before
+    public void init() {
+        //构造mockMvc
+        //不知道为什么Spring小组，不提供MockMvc注解方式@Autowired方式初始化
+        mockMvc = MockMvcBuilders.webAppContextSetup(wac).build();
+    }
+    
+    //获取Spring MVC测试支持对象MockMvc
+    public MockMvc getMockMvc() {
+        return mockMvc;
+    }
+}
+
+```
+
+这样子，就定义了一个`测试基类`。具体的`TestCase`只需要**继承**这个测试基类即可。
+
+**Spring MVC测试**
+
+```
+
+//继承测试基类
+public class ArticleCtrlTest extends SpringTest {
+    //路径
+    final static String PATH = "/main/ArticleCtrl/";
+    
+    //支持@Autowired方式
+    @Autowired
+    ArticleIo articleIo;
+    
+    
+    @Test
+    public void getTest() throws Exception {
+        final Article article = new Article(null, "测试数据", false);
+        //插入一条数据
+        articleIo.insert(article);
+        //检测接口
+        getMockMvc().perform(MockMvcRequestBuilders.post(PATH + "get").param("id", article.getId())).andDo(new ResultHandler() {
+            @Override
+            public void handle(MvcResult result) throws Exception {
+                JSONObject ret = JSON.parseObject(result.getResponse().getContentAsString());
+                //ok
+                Assert.assertTrue(ret.getInteger("code") == 0);
+                //check
+                Assert.assertTrue(ret.getJSONObject("msg").getString("id").equals(article.getId()));
+            }
+        });
+    }
+    
+}
+
+```
+
+以上，就是一个简单的Spring MVC测试用例。对于Dao或者Service测试就更加简单了。
+
+注意：**getTest的事务会进行回滚操作，不会真正的写入数据库。**
+
+**运行截图**
+
+![](A2B4.tmp.jpg)
+
+
 ## 源码分析
 
 每次调用@Test，都会新建对象
 
 Spring ApplicationContext 对象复用
 
+
 ## 最佳实践
 
-命名规范:类Test 函数Test
+这里总结一下JUnit最佳实践：
 
-测试范围：函数级别，别跨@Test函数调用
+1. 测试目标为：Dao，Service，Controller层。
+2. 一个类，一个测试类；一个函数，一个测试函数；
+3. 命名规则： ClassNameTest 和 FunctionNameTest。
+4. 切勿@Test函数相互调用。
+5. 合理使用测试基类（如：SpringTest）。
+6. 覆盖率：业务类型>=60%，工具类型>=80%。
 
 ## 参考
 
 * [JUnit教程](http://www.yiibai.com/junit/)
 * [利用junit对springMVC的Controller进行测试](http://www.tuicool.com/articles/7rMziy)
 * [Maven单元测试报告及测试覆盖率](http://www.cnblogs.com/qinpengming/archive/2016/02/28/5225380.html)
+
+
