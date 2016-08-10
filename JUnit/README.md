@@ -318,7 +318,7 @@ public class ArticleCtrlTest extends SpringTest {
 注意：
 
 1. getTest()的事务会进行**回滚操作**，不会真正的写入数据库。
-2. Spring MVC 是通过模拟 "/" 路径的Servlet实现，不支持web.xml中注册的Servlet测试。
+2. Spring MVC 是通过模拟 "/" 路径的Servlet实现，**不支持web.xml中注册的Servlet测试**。
 
 **运行截图**
 
