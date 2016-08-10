@@ -6,12 +6,14 @@
 
 ```java
     
-    AnnotationConfigApplicationContext:
+AnnotationConfigApplicationContext#init:
+
         1. 定义一个DefaultListableBeanFactory作为beanFactory
         2. 加载默认的BeanFactoryPostProcessor处理@Autowired
         3. 注册给定的 SpringConf
         
-    
+AbstractApplicationContext#refresh:
+
     synchronized (this.startupShutdownMonitor) {
         // 初始化容器环境
         prepareRefresh();
@@ -84,6 +86,94 @@
         }
     }
 
+DefaultListableBeanFactory#preInstantiateSingletons:
+
+	// Trigger initialization of all non-lazy singleton beans...
+	for (String beanName : beanNames) {
+		RootBeanDefinition bd = getMergedLocalBeanDefinition(beanName);
+		//非抽象类，单例模式，非延迟加载
+		if (!bd.isAbstract() && bd.isSingleton() && !bd.isLazyInit()) {
+			//判断beanName指向的bean是否为FactoryBean类型
+			if (isFactoryBean(beanName)) {
+				final FactoryBean<?> factory = (FactoryBean<?>) getBean(FACTORY_BEAN_PREFIX + beanName);
+				boolean isEagerInit;
+				if (System.getSecurityManager() != null && factory instanceof SmartFactoryBean) {
+					isEagerInit = AccessController.doPrivileged(new PrivilegedAction<Boolean>() {
+						@Override
+						public Boolean run() {
+							return ((SmartFactoryBean<?>) factory).isEagerInit();
+						}
+					}, getAccessControlContext());
+				}
+				else {
+					isEagerInit = (factory instanceof SmartFactoryBean &&
+							((SmartFactoryBean<?>) factory).isEagerInit());
+				}
+				if (isEagerInit) {
+					getBean(beanName);
+				}
+			}
+			else {
+				getBean(beanName);
+			}
+		}
+	}
+	
+AbstractBeanFactory#isFactoryBean:
+
+	@Override
+	public boolean isFactoryBean(String name) throws NoSuchBeanDefinitionException {
+		//截断 &beanName
+		String beanName = transformedBeanName(name);
+		//获取beanName指向的对象
+		Object beanInstance = getSingleton(beanName, false);
+		if (beanInstance != null) {
+			//对比是否是FactoryBean类型
+			return (beanInstance instanceof FactoryBean);
+		}
+		//避免beanName指向的对象为null，从而导致 beanInstance != null 逻辑失败
+		else if (containsSingleton(beanName)) {
+			// null instance registered
+			return false;
+		}
+
+		// No singleton instance found -> check bean definition.
+		if (!containsBeanDefinition(beanName) && getParentBeanFactory() instanceof ConfigurableBeanFactory) {
+			// No bean definition found in this factory -> delegate to parent.
+			return ((ConfigurableBeanFactory) getParentBeanFactory()).isFactoryBean(name);
+		}
+		//读取mdb信息，然后判断是否为 FactoryBean 类型
+		return isFactoryBean(beanName, getMergedLocalBeanDefinition(beanName));
+	}
+	
+AbstractAutowireCapableBeanFactory#doCreateBean:
+
+	protected Object doCreateBean(final String beanName, final RootBeanDefinition mbd, final Object[] args) {
+		// Instantiate the bean.
+		BeanWrapper instanceWrapper = null;
+		if (mbd.isSingleton()) {
+			instanceWrapper = this.factoryBeanInstanceCache.remove(beanName);
+		}
+		if (instanceWrapper == null) {
+			instanceWrapper = createBeanInstance(beanName, mbd, args);
+		}
+		...
+		// Initialize the bean instance.
+		Object exposedObject = bean;
+		try {
+			//设置属性
+			populateBean(beanName, mbd, instanceWrapper);
+			if (exposedObject != null) {
+				//初始化设置
+				//1. call beanProcessor#postProcessBeforeInitialization
+				//2. call init-method -> InitializingBean#afterPropertiesSet | init-method
+				//3. call beanProcessor#postProcessAfterInitialization
+				exposedObject = initializeBean(beanName, exposedObject, mbd);
+			}
+		}
+		...
+		return exposedObject;
+	}
 ```
 
 
