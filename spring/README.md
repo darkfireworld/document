@@ -40,7 +40,7 @@ public interface BeanFactoryPostProcessor {
 
 ```
 
-注意：`BeanFactoryPostProcessor#postProcessBeanFactory`被调用的时候，BeanFactory中的BeanDefinition集合已经加载完成，所以不同通过`postProcessBeanFactory`加载新的`BeanDefinition`。
+注意：`BeanFactoryPostProcessor#postProcessBeanFactory`被调用的时候，BeanFactory中的BeanDefinition集合已经**加载完成**，所以不同通过`postProcessBeanFactory`加载新的`BeanDefinition`。
 
 代表类：
 
@@ -89,22 +89,108 @@ public interface BeanDefinitionRegistryPostProcessor extends BeanFactoryPostProc
 
 #### BeanPostProcessor
 
+在bean的生命周期中，**BeanPostProcessor**扮演着非常重要的角色：
 
-BeanPostProcessor
-
-MergedBeanDefinitionPostProcessor
-
-InstantiationAwareBeanPostProcessor
-
-DestructionAwareBeanPostProcessor
+```java
 
 
+/**
+ * Factory hook that allows for custom modification of new bean instances,
+ * e.g. checking for marker interfaces(@Autowired) or wrapping them with proxies(动态代理).
+ *
+ */
+public interface BeanPostProcessor {
+
+	/**
+	 * Apply this BeanPostProcessor to the given new bean instance <i>before</i> any bean
+	 * initialization callbacks (like InitializingBean's {@code afterPropertiesSet}
+	 * or a custom init-method).(这个方法在bean的 initialization 方法之前被调用) 
+     * The bean will already be populated with property values.(此时，bean的属性已经被设置完成)
+	 * The returned bean instance may be a wrapper around the original.(返回的对象可能是一个warp对象，代理)
+     *
+	 * @param bean the new bean instance
+	 * @param beanName the name of the bean
+	 * @return the bean instance to use, either the original or a wrapped one;
+	 * if {@code null}, no subsequent BeanPostProcessors will be invoked
+	 * @throws org.springframework.beans.BeansException in case of errors
+	 * @see org.springframework.beans.factory.InitializingBean#afterPropertiesSet
+	 */
+	Object postProcessBeforeInitialization(Object bean, String beanName) throws BeansException;
+
+	/**
+	 * Apply this BeanPostProcessor to the given new bean instance <i>after</i> any bean
+	 * initialization callbacks (like InitializingBean's {@code afterPropertiesSet}
+	 * or a custom init-method)(这个方法在bean的 initialization 方法之后被调用). 
+     * The bean will already be populated with property values.(此时，bean的属性已经被设置完成)
+	 * The returned bean instance may be a wrapper around the original(返回的对象可能是一个warp对象，代理).
+     *
+	 * <p>In case of a FactoryBean, this callback will be invoked for both the FactoryBean
+	 * instance and the objects created by the FactoryBean (as of Spring 2.0). (该方法也会应用于FactoryBean#getObject()获取的bean对象)
+	 * The post-processor can decide whether to apply to either the FactoryBean or created
+	 * objects or both through corresponding {@code bean instanceof FactoryBean} checks.
+     *
+	 * <p>This callback will also be invoked after a short-circuiting triggered(这个方法将会在"短生命周期"中被立即触发) 
+     * by a{@link InstantiationAwareBeanPostProcessor#postProcessBeforeInstantiation} method,
+	 * in contrast to all other BeanPostProcessor callbacks.
+     *
+	 * @param bean the new bean instance
+	 * @param beanName the name of the bean
+	 * @return the bean instance to use, either the original or a wrapped one;
+	 * if {@code null}, no subsequent BeanPostProcessors will be invoked
+	 * @throws org.springframework.beans.BeansException in case of errors
+	 * @see org.springframework.beans.factory.InitializingBean#afterPropertiesSet
+	 * @see org.springframework.beans.factory.FactoryBean
+	 */
+	Object postProcessAfterInitialization(Object bean, String beanName) throws BeansException;
+
+}
+
+
+```
+
+Spring Aop其实就是通过`BeanPostProcessor#postProcessAfterInitialization`来实现的，详情见**AnnotationAwareAspectJAutoProxyCreator**。
+
+注意：虽然`BeanPostProcessor`接口申明的方法，仅仅只能管理bean在**设置属性后**的生命周期，但是它的**子接口**拥有更大的权限。
+
+现在，我们再来看看`BeanPostProcessor`的子接口，通过子接口，可以拥有更大的权限，来操作bean的生命周期。
+
+##### MergedBeanDefinitionPostProcessor
+
+##### InstantiationAwareBeanPostProcessor
+
+##### DestructionAwareBeanPostProcessor
+
+#### 关于Ordered
 
 ### Bean生命周期
+
+ * <p>Bean factory implementations should support the standard bean lifecycle interfaces
+ * as far as possible. The full set of initialization methods and their standard order is:<br>
+ * 1. BeanNameAware's {@code setBeanName}<br>
+ * 2. BeanClassLoaderAware's {@code setBeanClassLoader}<br>
+ * 3. BeanFactoryAware's {@code setBeanFactory}<br>
+ * 4. ResourceLoaderAware's {@code setResourceLoader}
+ * (only applicable when running in an application context)<br>
+ * 5. ApplicationEventPublisherAware's {@code setApplicationEventPublisher}
+ * (only applicable when running in an application context)<br>
+ * 6. MessageSourceAware's {@code setMessageSource}
+ * (only applicable when running in an application context)<br>
+ * 7. ApplicationContextAware's {@code setApplicationContext}
+ * (only applicable when running in an application context)<br>
+ * 8. ServletContextAware's {@code setServletContext}
+ * (only applicable when running in a web application context)<br>
+ * 9. {@code postProcessBeforeInitialization} methods of BeanPostProcessors<br>
+ * 10. InitializingBean's {@code afterPropertiesSet}<br>
+ * 11. a custom init-method definition<br>
+ * 12. {@code postProcessAfterInitialization} methods of BeanPostProcessors
+ 
+ 
 
 FactoryBean
 
 
+
+Aware
 
 
 http://developer.51cto.com/art/201104/255961.htm
