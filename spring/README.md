@@ -2,6 +2,117 @@
 
 ## Ioc
 
+Spring的Ioc功能是核心功能，其他的组件（Aop，Tx，Mvc）都依赖Ioc，从而实现。
+
+### 容器生命周期
+
+在容器中，所有的Bean都是通过**后处理器**进行管理的。而在Spring容器中，`后处理器`大致有两种类型和衍生类：
+
+* BeanFactoryPostProcessor: 管理已加载到BeanFactory中的BeanDefinition集合。
+* BeanPostProcessor: 管理Bean的生命周期。
+
+通过这两种类型的`后处理器`，就可以比较全面的控制Ioc容器。下面来详细讲解这些`后处理器`。
+
+#### BeanFactoryPostProcessor
+
+通过`BeanFactoryPostProcessor`，我们可以管理已加载到BeanFactory中的BeanDefinition集合：
+
+```java
+
+/**
+ * Allows for custom modification of an application context's bean definitions(BeanDefinition 集合),
+ * adapting the bean property values(属性配置) of the context's underlying bean factory.
+ */
+public interface BeanFactoryPostProcessor {
+
+	/**
+	 * Modify the application context's internal bean factory after its standard initialization(内置beanFactory已经被实例化).
+	 * All bean definitions will have been loaded(此时 BeanDefinition 已经加载完成), 
+	 * but no beans will have been instantiated yet( 但是bean还没有被初始化[排除后处理器] ). 
+	 * This allows for overriding or adding properties(修改属性值) even to eager-initializing beans.
+     *
+	 * @param beanFactory the bean factory used by the application context
+	 * @throws org.springframework.beans.BeansException in case of errors
+	 */
+	void postProcessBeanFactory(ConfigurableListableBeanFactory beanFactory) throws BeansException;
+
+}
+
+```
+
+注意：`BeanFactoryPostProcessor#postProcessBeanFactory`被调用的时候，BeanFactory中的BeanDefinition集合已经加载完成，所以不同通过`postProcessBeanFactory`加载新的`BeanDefinition`。
+
+代表类：
+
+![](9686.tmp.jpg)
+
+可以发现，大部分实现类都是针对**属性**进行修改。下面，来看一下`BeanDefinitionRegistryPostProcessor`这个管理`BeanDefinition`后处理器。
+
+##### BeanDefinitionRegistryPostProcessor
+
+通过`BeanDefinitionRegistryPostProcessor`这个后处理器，我们可以新增`BeanDefinition`到beanFactory中：
+
+```java
+
+/**
+ * Extension to the standard {@link BeanFactoryPostProcessor} SPI, allowing for
+ * the registration of further bean definitions <i>before</i> regular
+ * BeanFactoryPostProcessor detection kicks in. In particular,
+ * BeanDefinitionRegistryPostProcessor may register further bean definitions
+ * which in turn define BeanFactoryPostProcessor instances.
+ *
+ * @author Juergen Hoeller
+ * @since 3.0.1
+ * @see org.springframework.context.annotation.ConfigurationClassPostProcessor
+ */
+public interface BeanDefinitionRegistryPostProcessor extends BeanFactoryPostProcessor {
+
+	/**
+	 * Modify the application context's internal bean definition registry after its
+	 * standard initialization. All regular bean definitions will have been loaded,
+	 * but no beans will have been instantiated yet. This allows for adding further
+	 * bean definitions before the next post-processing phase kicks in.(在后处理阶段之前，允许
+     * 添加新的definitions到beanFactory中)
+	 * @param registry the bean definition registry used by the application context
+	 * @throws org.springframework.beans.BeansException in case of errors
+	 */
+	void postProcessBeanDefinitionRegistry(BeanDefinitionRegistry registry) throws BeansException;
+
+}
+
+
+```
+
+显然，通过`BeanDefinitionRegistryPostProcessor#postProcessBeanDefinitionRegistry`方法，可以添加一些新的`BeanDefinition`到beanFactory中。
+
+当前，Spring就是通过`public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPostProcessor`这个类，实现了**基于注解配置**的功能。
+
+#### BeanPostProcessor
+
+
+BeanPostProcessor
+
+MergedBeanDefinitionPostProcessor
+
+InstantiationAwareBeanPostProcessor
+
+DestructionAwareBeanPostProcessor
+
+
+
+### Bean生命周期
+
+FactoryBean
+
+
+
+
+http://developer.51cto.com/art/201104/255961.htm
+
+
+
+### 源码剖析
+
 ### refresh
 
 ```java
@@ -398,22 +509,73 @@ AbstractAutowireCapableBeanFactory#doCreateBean:
 			}
 		}
 		...
+        // Register bean as disposable.
+		try {
+            //注册析构函数，如果有必要的话
+			registerDisposableBeanIfNecessary(beanName, bean, mbd);
+		}
+		catch (BeanDefinitionValidationException ex) {
+			throw new BeanCreationException(mbd.getResourceDescription(), beanName, "Invalid destruction signature", ex);
+		}
 		return exposedObject;
+	}
+    
+    
+DisposableBeanAdapter:destroy
+    // 如果bean符合singleton，并且存在析构函数（implements DisposableBean | @PreDestroy ..)
+    // 则会使用 DisposableBeanAdapter 包裹这个bean
+    // 当contextd#close()被调用的时候，就会进行析构所有的singleton
+    
+    @Override
+	public void destroy() {
+		if (!CollectionUtils.isEmpty(this.beanPostProcessors)) {
+			for (DestructionAwareBeanPostProcessor processor : this.beanPostProcessors) {
+				processor.postProcessBeforeDestruction(this.bean, this.beanName);
+			}
+		}
+
+		if (this.invokeDisposableBean) {
+			if (logger.isDebugEnabled()) {
+				logger.debug("Invoking destroy() on bean with name '" + this.beanName + "'");
+			}
+			try {
+				if (System.getSecurityManager() != null) {
+					AccessController.doPrivileged(new PrivilegedExceptionAction<Object>() {
+						@Override
+						public Object run() throws Exception {
+							((DisposableBean) bean).destroy();
+							return null;
+						}
+					}, acc);
+				}
+				else {
+					((DisposableBean) bean).destroy();
+				}
+			}
+			catch (Throwable ex) {
+				String msg = "Invocation of destroy method failed on bean with name '" + this.beanName + "'";
+				if (logger.isDebugEnabled()) {
+					logger.warn(msg, ex);
+				}
+				else {
+					logger.warn(msg + ": " + ex);
+				}
+			}
+		}
+
+		if (this.destroyMethod != null) {
+			invokeCustomDestroyMethod(this.destroyMethod);
+		}
+		else if (this.destroyMethodName != null) {
+			Method methodToCall = determineDestroyMethod();
+			if (methodToCall != null) {
+				invokeCustomDestroyMethod(methodToCall);
+			}
+		}
 	}
 ```
 
 
-### BeanFactoryPostProcessor 生命周期
-
-### BeanPostProcessor 生命周期
-
-#### InstantiationAwareBeanPostProcessor
-
-### Bean 生命周期
-
-### FactoryBean
-
-http://developer.51cto.com/art/201104/255961.htm
 
 ## Aop
 
@@ -568,6 +730,8 @@ AbstractAutoProxyCreator:postProcessAfterInitialization
     
 注意：同类相互调用AOP失效
 
+
+@EnableLoadTimeWeaving
 ## Tx
 
 事务实现机制
