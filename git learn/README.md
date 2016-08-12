@@ -169,6 +169,12 @@ versionCode计算公式为：
 
 `git commit -m msg`
 
+显示对象的信息
+
+`git show [options] <object>`
+
+注意：如果object为commit类型，则自动进行diff操作。
+
 ### 提交历史
 
 从最新提交开始显示所有的提交记录
