@@ -20,19 +20,22 @@ Spring的Ioc功能是核心功能，其他的组件（Aop，Tx，Mvc）都依赖
 ```java
 
 /**
- * Allows for custom modification of an application context's bean definitions(BeanDefinition 集合),
- * adapting the bean property values(属性配置) of the context's underlying bean factory.
+ * Allows for custom modification of an application context's bean definitions,
+ * adapting the bean property values of the context's underlying bean factory.
+ *
+ * 通过这个后处理器，可以修改上下文中bean definitions，以及修改bean property values。
  */
 public interface BeanFactoryPostProcessor {
 
 	/**
-	 * Modify the application context's internal bean factory after its standard initialization(内置beanFactory已经被实例化).
-	 * All bean definitions will have been loaded(此时 BeanDefinition 已经加载完成), 
-	 * but no beans will have been instantiated yet( 但是bean还没有被初始化[排除后处理器] ). 
-	 * This allows for overriding or adding properties(修改属性值) even to eager-initializing beans.
+	 * Modify the application context's internal bean factory after its standard initialization.
+	 * All bean definitions will have been loaded, but no beans will have been instantiated yet.
+	 * This allows for overriding or adding properties even to eager-initializing beans.
      *
-	 * @param beanFactory the bean factory used by the application context
-	 * @throws org.springframework.beans.BeansException in case of errors
+	 * 修改上下文中已经初始化完成的内置bean factory。
+	 * 此时，所有的bean definitions已经被加载完成, 但是此时beans 还没有被初始化完成（排除后处理器bean）。
+	 * 通过这个方法，允许覆盖或者添加属性值到特定的beans定义中。
+	 *
 	 */
 	void postProcessBeanFactory(ConfigurableListableBeanFactory beanFactory) throws BeansException;
 
@@ -40,7 +43,8 @@ public interface BeanFactoryPostProcessor {
 
 ```
 
-注意：`BeanFactoryPostProcessor#postProcessBeanFactory`被调用的时候，BeanFactory中的BeanDefinition集合已经**加载完成**，所以不同通过`postProcessBeanFactory`加载新的`BeanDefinition`。
+注意：`BeanFactoryPostProcessor#postProcessBeanFactory`被调用的时候，BeanFactory中的BeanDefinition集合已经**加载完成**，所以**不能**
+通过`postProcessBeanFactory`加载新的`BeanDefinition`。
 
 代表类：
 
@@ -61,6 +65,9 @@ public interface BeanFactoryPostProcessor {
  * BeanDefinitionRegistryPostProcessor may register further bean definitions
  * which in turn define BeanFactoryPostProcessor instances.
  *
+ * 扩展标准的BeanFactoryPostProcessor接口，允许在标准BeanFactoryPostProcessor#postProcessBeanFactory调用之前，
+ * 注册新的bean definitions 到容器中。甚至，可以注册新的BeanFactoryPostProcessor类型的bean definitions到容器中。
+ *
  * @author Juergen Hoeller
  * @since 3.0.1
  * @see org.springframework.context.annotation.ConfigurationClassPostProcessor
@@ -71,8 +78,11 @@ public interface BeanDefinitionRegistryPostProcessor extends BeanFactoryPostProc
 	 * Modify the application context's internal bean definition registry after its
 	 * standard initialization. All regular bean definitions will have been loaded,
 	 * but no beans will have been instantiated yet. This allows for adding further
-	 * bean definitions before the next post-processing phase kicks in.(在后处理阶段之前，允许
-     * 添加新的definitions到beanFactory中)
+	 * bean definitions before the next post-processing phase kicks in.
+	 *
+	 * 允许在下一个后处理阶段(BeanFactoryPostProcessor#postProcessBeanFactory)之前，添加新
+	 * 的bean definitions到容器中。bean definitions可以为 BeanFactoryPostProcessor类型。
+	 * 
 	 * @param registry the bean definition registry used by the application context
 	 * @throws org.springframework.beans.BeansException in case of errors
 	 */
@@ -103,43 +113,40 @@ public interface BeanPostProcessor {
 
 	/**
 	 * Apply this BeanPostProcessor to the given new bean instance <i>before</i> any bean
-	 * initialization callbacks (like InitializingBean's {@code afterPropertiesSet}
-	 * or a custom init-method).(这个方法在bean的 initialization 方法之前被调用) 
-     * The bean will already be populated with property values.(此时，bean的属性已经被设置完成)
-	 * The returned bean instance may be a wrapper around the original.(返回的对象可能是一个warp对象，代理)
+	 * initialization callbacks (like InitializingBean's {@code afterPropertiesSet}or a custom init-method).
+     * The bean will already be populated with property values.The returned bean instance may 
+	 * be a wrapper around the original.
      *
-	 * @param bean the new bean instance
-	 * @param beanName the name of the bean
-	 * @return the bean instance to use, either the original or a wrapped one;
-	 * if {@code null}, no subsequent BeanPostProcessors will be invoked
-	 * @throws org.springframework.beans.BeansException in case of errors
-	 * @see org.springframework.beans.factory.InitializingBean#afterPropertiesSet
+	 * 在bean对象的initialization方法回调之前，apply这个后处理。
+	 * 此时bean的属性已经被设置完成。
+	 * 返回的对象可以是一个原始对象或者wrap对象。
 	 */
 	Object postProcessBeforeInitialization(Object bean, String beanName) throws BeansException;
 
 	/**
 	 * Apply this BeanPostProcessor to the given new bean instance <i>after</i> any bean
-	 * initialization callbacks (like InitializingBean's {@code afterPropertiesSet}
-	 * or a custom init-method)(这个方法在bean的 initialization 方法之后被调用). 
-     * The bean will already be populated with property values.(此时，bean的属性已经被设置完成)
-	 * The returned bean instance may be a wrapper around the original(返回的对象可能是一个warp对象，代理).
+	 * initialization callbacks (like InitializingBean's {@code afterPropertiesSet}or a custom init-method)
+     * The bean will already be populated with property values.
+	 * The returned bean instance may be a wrapper around the original.
      *
+	 * 在bean对象的initialization方法回调之后，apply这个后处理。
+	 * 此时bean的属性已经被设置完成。
+	 * 返回的对象可以是一个原始对象或者wrap对象。
+	 *
 	 * <p>In case of a FactoryBean, this callback will be invoked for both the FactoryBean
-	 * instance and the objects created by the FactoryBean (as of Spring 2.0). (该方法也会应用于FactoryBean#getObject()获取的bean对象)
+	 * instance and the objects created by the FactoryBean (as of Spring 2.0).
 	 * The post-processor can decide whether to apply to either the FactoryBean or created
 	 * objects or both through corresponding {@code bean instanceof FactoryBean} checks.
      *
-	 * <p>This callback will also be invoked after a short-circuiting triggered(这个方法将会在"短生命周期"中被立即触发) 
+	 * 针对通过FactoryBean#getObject()获取的bean，这个后处理也会被apply。
+	 *
+	 * <p>This callback will also be invoked after a short-circuiting triggered
      * by a{@link InstantiationAwareBeanPostProcessor#postProcessBeforeInstantiation} method,
 	 * in contrast to all other BeanPostProcessor callbacks.
      *
-	 * @param bean the new bean instance
-	 * @param beanName the name of the bean
-	 * @return the bean instance to use, either the original or a wrapped one;
-	 * if {@code null}, no subsequent BeanPostProcessors will be invoked
-	 * @throws org.springframework.beans.BeansException in case of errors
-	 * @see org.springframework.beans.factory.InitializingBean#afterPropertiesSet
-	 * @see org.springframework.beans.factory.FactoryBean
+	 * 当bean通过InstantiationAwareBeanPostProcessor#postProcessBeforeInstantiation方法获取
+	 * 的时候，会触发这个"后处理"回调。此时，bean的生命周期被称为"短生命周期"。
+	 * 
 	 */
 	Object postProcessAfterInitialization(Object bean, String beanName) throws BeansException;
 
@@ -174,7 +181,9 @@ public interface MergedBeanDefinitionPostProcessor extends BeanPostProcessor {
 
 	/**
 	 * Post-process the given merged bean definition for the specified bean.
+	 *
 	 * (针对bean definition进行后处理)
+	 *
 	 * @param beanDefinition the merged bean definition for the bean
 	 * @param beanType the actual type of the managed bean instance
 	 * @param beanName the name of the bean
@@ -421,6 +430,98 @@ FactoryBean具有如下特性：
 通过这些`Aware`接口，可以非常轻松的将容器的变量注入到bean中。详情见：`CommonAnnotationBeanPostProcessor`。
 
 ### 源码剖析
+
+现在，我们以`AnnotationConfigApplicationContext`为例子，来分析一下Spring容器初始化和销毁的过曾过程：
+
+```java
+
+    static public void main(String[] args) {
+		//初始化
+        AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(SpringConf.class);
+		//销毁
+        context.close();
+    }
+	
+```
+
+#### 容器初始化
+
+**AnnotationConfigApplicationContext构造过程：**
+
+```java
+
+AnnotationConfigApplicationContext:
+
+	/**
+	 * Create a new AnnotationConfigApplicationContext, deriving bean definitions
+	 * from the given annotated classes and automatically refreshing the context.
+	 *
+	 * 创建一个AnnotationConfigApplicationContext对象，注册annotated classes并且自动刷新上下文
+	 *
+	 */
+	public AnnotationConfigApplicationContext(Class<?>... annotatedClasses) {
+		//调用构造函数
+		this();
+		//注册该注解配置的classes
+		register(annotatedClasses);
+		//刷新上下文
+		refresh();
+	}
+	
+AnnotationConfigApplicationContext:
+
+	/**
+	 * Create a new AnnotationConfigApplicationContext that needs to be populated
+	 * through {@link #register} calls and then manually {@linkplain #refresh refreshed}.
+	 */
+	public AnnotationConfigApplicationContext() {
+		//初始化reader
+		this.reader = new AnnotatedBeanDefinitionReader(this);
+		//初始化scanner
+		this.scanner = new ClassPathBeanDefinitionScanner(this);
+	}
+	
+GenericApplicationContext:
+	/**
+	 * Create a new GenericApplicationContext.
+	 * 
+	 * 创建一个通用上下文
+	 */
+	public GenericApplicationContext() {
+		//默认的beanFactory
+		this.beanFactory = new DefaultListableBeanFactory();
+	}
+	
+AbstractApplicationContext：
+	/**
+	 * Create a new AbstractApplicationContext with no parent.
+	 *
+	 × 创建一个新的AbstractApplicationContext对象，且没有parent。
+	 */
+	public AbstractApplicationContext() {
+		//加载资源解析器
+		this.resourcePatternResolver = getResourcePatternResolver();
+	}
+	
+DefaultResourceLoader：
+	/**
+	 * Create a new DefaultResourceLoader.
+	 *
+	 * 创建一个新的DefaultResourceLoader对象，此时ClassLoader为当前线程的ClassLoader。
+	 */
+	public DefaultResourceLoader() {
+		//获取当前线程的ClassLoader
+		this.classLoader = ClassUtils.getDefaultClassLoader();
+	}
+```
+
+分析上面的代码，在初始化`AnnotationConfigApplicationContext`上下文的时候，会发生如下事件：
+
+1. 构造默认的beanFactory=DefaultListableBeanFactory.
+2. 注册给定的**注解配置类(SpringConf)**。
+3. **refresh**当前上下文。
+
+#### 容器销毁
 
 ### refresh
 
