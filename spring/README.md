@@ -4,7 +4,7 @@
 
 Spring的Ioc功能是核心功能，其他的组件（Aop，Tx，Mvc）都依赖Ioc，从而实现。
 
-### 容器生命周期
+### 后处理器
 
 在容器中，所有的Bean都是通过**后处理器**进行管理的。而在Spring容器中，`后处理器`大致有两种类型和衍生类：
 
@@ -300,6 +300,38 @@ Spring在初始化和使用**BeanFactoryPostProcessor和BeanPostProcessor**的�
 在Spring中，通过Ordered和PriorityOrdered来标记优先级：**PriorityOrdered > Ordered > Non-Ordered**。
 
 通过`Ordered`接口定义优先级，就可以解决上述的问题了。
+
+### 容器生命周期
+
+一个容器的初始化到销毁，大致会经历如下的阶段：
+
+**容器初始化：**
+
+1. 构造DefaultListableBeanFactory对象
+2. 添加**默认后处理器**以及默认Bean配置(SpringConf)，比如说：`ConfigurationClassPostProcessor`，`AutowiredAnnotationBeanPostProcessor`
+3. 初始化容器 Environment 对象。
+4. 初始化并且**调用**`BeanFactoryPostProcessor`接口对象。
+5. 初始化并且**注册**`BeanPostProcessor`接口对象。
+6. 初始化MessageSource（国际化支持）
+7. 初始化ApplicationEventMulticaster（事件总线）
+8. 注册容器中Listener（事件监听器）
+9. 锁定容器Configuration对象
+10. 初始化所有singleton且非lazy的bean。
+
+**容器销毁：**
+
+容器销毁通常有两种方式：
+
+1. 调用`context#registerShutdownHook`方法，然后当JVM关闭的时候，通过`ShutdownHook`回调，执行容器`doClose`方法。
+2. 主动调用`context#close`方法，执行容器`doClose`方法。
+
+容器的doClose方法的流程如下：
+
+1. 发送容器**关闭**事件。
+2. 销毁容器中的singleton bean，并且执行`bean#destroy`方法。
+3. 设置容器的factory=null。
+
+这样子，就完成了容器的销毁。
 
 ### Bean生命周期
 
