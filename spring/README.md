@@ -467,59 +467,23 @@ AnnotationConfigApplicationContext:
 		//刷新上下文
 		refresh();
 	}
-	
-AnnotationConfigApplicationContext:
-
-	/**
-	 * Create a new AnnotationConfigApplicationContext that needs to be populated
-	 * through {@link #register} calls and then manually {@linkplain #refresh refreshed}.
-	 */
-	public AnnotationConfigApplicationContext() {
-		//初始化reader
-		this.reader = new AnnotatedBeanDefinitionReader(this);
-		//初始化scanner
-		this.scanner = new ClassPathBeanDefinitionScanner(this);
-	}
-	
-GenericApplicationContext:
-	/**
-	 * Create a new GenericApplicationContext.
-	 * 
-	 * 创建一个通用上下文
-	 */
-	public GenericApplicationContext() {
-		//默认的beanFactory
-		this.beanFactory = new DefaultListableBeanFactory();
-	}
-	
-AbstractApplicationContext：
-	/**
-	 * Create a new AbstractApplicationContext with no parent.
-	 *
-	 × 创建一个新的AbstractApplicationContext对象，且没有parent。
-	 */
-	public AbstractApplicationContext() {
-		//加载资源解析器
-		this.resourcePatternResolver = getResourcePatternResolver();
-	}
-	
-DefaultResourceLoader：
-	/**
-	 * Create a new DefaultResourceLoader.
-	 *
-	 * 创建一个新的DefaultResourceLoader对象，此时ClassLoader为当前线程的ClassLoader。
-	 */
-	public DefaultResourceLoader() {
-		//获取当前线程的ClassLoader
-		this.classLoader = ClassUtils.getDefaultClassLoader();
-	}
+ 
 ```
 
-分析上面的代码，在初始化`AnnotationConfigApplicationContext`上下文的时候，会发生如下事件：
+分析上面的代码，在初始化`AnnotationConfigApplicationContext`上下文的时候，发生如下重要过程：
 
-1. 构造默认的beanFactory=DefaultListableBeanFactory.
-2. 注册给定的**注解配置类(SpringConf)**。
-3. **refresh**当前上下文。
+1. 绑定当前线程的ClassLoader，见`DefaultResourceLoader`。
+2. 绑定默认资源解析器，见`AbstractApplicationContext`。
+3. 设置内置beanFactory=DefaultListableBeanFactory，见`GenericApplicationContext`。
+4. 加载默认注解类型的后处理器，如@Autowired，@Configuration，@PostConstruct，@Bean...，见`AnnotationConfigApplicationContext#init`->`AnnotatedBeanDefinitionReader#init`->`AnnotationConfigUtils.registerAnnotationConfigProcessors`.
+5. 注册给定的**注解配置类(SpringConf)**。
+6. **refresh**当前上下文。
+
+此时，beanFactory中注册的bean definitions 为：
+
+![](7EE0.tmp.jpg)
+
+可以发现，在调用**refresh**函数之前，beanFactory中已经包含了**注解类型的后处理器**以及**默认的注解配置（SpringConf）**。
 
 #### 容器销毁
 
