@@ -354,8 +354,8 @@ Spring在初始化和使用**BeanFactoryPostProcessor和BeanPostProcessor**的�
 
 * BeanPostProcessor#postProcessAfterInitialization:这个阶段，比较重要的就是对**Spring Aop**的支持了。详情见：`AnnotationAwareAspectJAutoProxyCreator`。
 
-* 注册Destruction回调：如果bean的作用域为**非Prototype**，且bean实现了`DisposableBean`接口或者指定了destroy方法，或者容器中存在`DestructionAwareBeanPostProcessor`类型
-的后处理器，则通过**DisposableBeanAdapter**包装这个bean对象，然后注册到对应作用域的**析构链**中。注意：`singleton bean`是在**容器销毁**的时候进行析构。
+* 注册Destruction回调：如果bean（scope != prototype）实现了`DisposableBean`接口或者指定了destroy方法，或者容器中存在`DestructionAwareBeanPostProcessor`类型的后处理器，
+则通过**DisposableBeanAdapter**包装这个bean对象，然后注册到对应作用域的**析构链**中。注意：`singleton bean`是在**容器销毁**的时候进行析构。
 
 * 析构Bean对象：当Bean析构的时候，会应用容器中所有`DestructionAwareBeanPostProcessor`类型的后处理器，通过调用`postProcessBeforeDestruction`方法处理bean。(如：
 `CommonAnnotationBeanPostProcessor`实现了**@PreDestroy**注解处理)。然后，容器会调用bean的析构过程：`DisposableBean#destroy`方法和`自定义destroy`方法。
