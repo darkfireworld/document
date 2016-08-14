@@ -335,38 +335,36 @@ Spring在初始化和使用**BeanFactoryPostProcessor和BeanPostProcessor**的�
 
 ### Bean生命周期
 
- * <p>Bean factory implementations should support the standard bean lifecycle interfaces
- * as far as possible. The full set of initialization methods and their standard order is:<br>
- * 1. BeanNameAware's {@code setBeanName}<br>
- * 2. BeanClassLoaderAware's {@code setBeanClassLoader}<br>
- * 3. BeanFactoryAware's {@code setBeanFactory}<br>
- * 4. ResourceLoaderAware's {@code setResourceLoader}
- * (only applicable when running in an application context)<br>
- * 5. ApplicationEventPublisherAware's {@code setApplicationEventPublisher}
- * (only applicable when running in an application context)<br>
- * 6. MessageSourceAware's {@code setMessageSource}
- * (only applicable when running in an application context)<br>
- * 7. ApplicationContextAware's {@code setApplicationContext}
- * (only applicable when running in an application context)<br>
- * 8. ServletContextAware's {@code setServletContext}
- * (only applicable when running in a web application context)<br>
- * 9. {@code postProcessBeforeInitialization} methods of BeanPostProcessors<br>
- * 10. InitializingBean's {@code afterPropertiesSet}<br>
- * 11. a custom init-method definition<br>
- * 12. {@code postProcessAfterInitialization} methods of BeanPostProcessors
- 
- 
+一个bean的生命周期大致如下：
 
-FactoryBean
+![](37CE.tmp.jpg)
 
+通过上图，可以比较清晰的了解到bean的生命周期。现在，介绍一下bean生命周期中关键的点：
 
+* 实例化bean对象：一般来说，bean的实例化会通过**无参构造函**数进行实例化，但是，如果一个bean
+被`InstantiationAwareBeanPostProcessor#postProcessBeforeInstantiation`代理生成对象，则会进入**短生命周期**处理。
 
-Aware
+* 设置对象属性：在此阶段，容器会设置bean的属性，包括@Autowired注入。值得注意的是@Autowired就是通过
+`InstantiationAwareBeanPostProcessor#postProcessPropertyValues`回调设置的。详情见：`AutowiredAnnotationBeanPostProcessor`。
 
+* BeanPostProcessor#postProcessBeforeInitialization处理：这个阶段比较重要的处理为：Aware（ApplicationContextAware，EnvironmentAware）注入，
+@PostConstruct等注解的实现。详情见：`ApplicationContextAwareProcessor`和`CommonAnnotationBeanPostProcessor`。
 
-http://developer.51cto.com/art/201104/255961.htm
+* invokeInitMethods: 容器会调用bean的初始化方法`InitializingBean#afterPropertiesSet`以及`自定义init方法`。
 
+* BeanPostProcessor#postProcessAfterInitialization:这个阶段，比较重要的就是对**Spring Aop**的支持了。详情见：`AnnotationAwareAspectJAutoProxyCreator`。
 
+* 注册Destruction回调：如果bean的作用域为**非Prototype**，且bean实现了`DisposableBean`接口或者指定了destroy方法，或者容器中存在`DestructionAwareBeanPostProcessor`类型
+的后处理器，则通过**DisposableBeanAdapter**包装这个bean对象，然后注册到对应作用域的**析构链**中。注意：`singleton bean`是在**容器销毁**的时候进行析构。
+
+* 析构Bean对象：当Bean析构的时候，会应用容器中所有`DestructionAwareBeanPostProcessor`类型的后处理器，通过调用`postProcessBeforeDestruction`方法处理bean。(如：
+`CommonAnnotationBeanPostProcessor`实现了**@PreDestroy**注解处理)。然后，容器会调用bean的析构过程：`DisposableBean#destroy`方法和`自定义destroy`方法。
+
+可以发现，spring中许多特性，如：@Autowired，@PostConstruct，@PreDestroy，Aop等，都是通过**后处理器**完成的。
+
+#### 关于FactoryBean
+
+#### 关于Aware
 
 ### 源码剖析
 
