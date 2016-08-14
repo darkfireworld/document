@@ -364,7 +364,61 @@ Spring在初始化和使用**BeanFactoryPostProcessor和BeanPostProcessor**的�
 
 #### 关于FactoryBean
 
+在Spring中，Bean的构造也可以通过**FactoryBean**来构造，通过`FactoryBean`可以更加自由的控制bean的生成：
+
+```java
+
+public interface FactoryBean<T> {
+
+	/**
+	 * Return an instance (possibly shared or independent) of the object
+	 * managed by this factory.
+	 *
+	 * 获取一个bean对象实例。
+	 */
+	T getObject() throws Exception;
+
+	/**
+	 * Return the type of object that this FactoryBean creates,
+	 * or {@code null} if not known in advance.
+	 * 
+	 * 返回bean的类型信息
+	 */
+	Class<?> getObjectType();
+
+	/**
+	 * Is the object managed by this factory a singleton? That is,
+	 * will {@link #getObject()} always return the same object
+	 * (a reference that can be cached)?
+	 *
+	 * 返回bean是否是sington模式，如果是的话，则会被缓存。
+	 */
+	boolean isSingleton();
+
+}
+
+```
+
+FactoryBean具有如下特性：
+
+* 通过**getBean(&beanName)**来获取FactoryBean对象，而通过**getBean(beanName)**来获取FactoryBean构造出来的Bean对象。
+* 创建FactoryBean的时候，会经历完整的bean生命周期。
+* 通过`FactoryBean#getObject`获取的bean对象，会仅仅通过`BeanPostProcessor#postProcessAfterInitialization`这个后处理。
+
+通过`FactoryBean`可以实现一些复杂Bean的生成。
+
 #### 关于Aware
+
+在Bean的生命周期过程中，我们会通过**Aware**来获取容器**内置变量**：
+
+1. ServletContextAware: 设置当前Spring MVC的 ServletContext。
+2. MessageSourceAware: 设置当前的MessageSource对象。
+3. EnvironmentAware：设置当前Environment对象。
+4. BeanFactoryAware：设置当前的BeanFactory对象。
+5. BeanNameAware：设置当前bean的name。
+6. ApplicationContextAware：设置当前的ApplicationContext对象。
+
+通过这些`Aware`接口，可以非常轻松的将容器的变量注入到bean中。详情见：`CommonAnnotationBeanPostProcessor`。
 
 ### 源码剖析
 
