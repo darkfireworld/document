@@ -337,7 +337,7 @@ Spring在初始化和使用**BeanFactoryPostProcessor和BeanPostProcessor**的�
 
 一个bean的生命周期大致如下：
 
-![](37CE.tmp.jpg)
+![](47CE.tmp.jpg)
 
 通过上图，可以比较清晰的了解到bean的生命周期。现在，介绍一下bean生命周期中关键的点：
 
