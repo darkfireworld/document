@@ -292,6 +292,15 @@ public interface DestructionAwareBeanPostProcessor extends BeanPostProcessor {
 
 #### 关于Ordered
 
+Spring在初始化和使用**BeanFactoryPostProcessor和BeanPostProcessor**的时候，会遇到**依赖**问题，比如说：
+
+> **自定义BeanPostProcessor**里面存在**@Autowried**注入的属性，则此时**AutowiredAnnotationBeanPostProcessor**需要在
+> 自定义BeanPostProcessor之前实例化并且**注册**到Factory中。
+
+在Spring中，通过Ordered和PriorityOrdered来标记优先级：**PriorityOrdered > Ordered > Non-Ordered**。
+
+通过`Ordered`接口定义优先级，就可以解决上述的问题了。
+
 ### Bean生命周期
 
  * <p>Bean factory implementations should support the standard bean lifecycle interfaces
