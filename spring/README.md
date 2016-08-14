@@ -344,8 +344,8 @@ Spring在初始化和使用**BeanFactoryPostProcessor和BeanPostProcessor**的�
 * 实例化bean对象：一般来说，bean的实例化会通过**无参构造函**数进行实例化，但是，如果一个bean
 被`InstantiationAwareBeanPostProcessor#postProcessBeforeInstantiation`代理生成对象，则会进入**短生命周期**处理。
 
-* 设置对象属性：在此阶段，容器会设置bean的属性，包括@Autowired注入。值得注意的是@Autowired就是通过
-`InstantiationAwareBeanPostProcessor#postProcessPropertyValues`回调设置的。详情见：`AutowiredAnnotationBeanPostProcessor`。
+* 设置对象属性：在此阶段，容器会设置bean的属性，包括@Autowired注入。值得注意的是@Autowired就是通过`InstantiationAwareBeanPostProcessor#postProcessPropertyValues`回调设置的。
+详情见：`AutowiredAnnotationBeanPostProcessor`。
 
 * BeanPostProcessor#postProcessBeforeInitialization处理：这个阶段比较重要的处理为：Aware（ApplicationContextAware，EnvironmentAware）注入，
 @PostConstruct等注解的实现。详情见：`ApplicationContextAwareProcessor`和`CommonAnnotationBeanPostProcessor`。
