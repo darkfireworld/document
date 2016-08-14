@@ -156,9 +156,139 @@ Spring Aop其实就是通过`BeanPostProcessor#postProcessAfterInitialization`�
 
 ##### MergedBeanDefinitionPostProcessor
 
+在Bean的初始化过程中，通过**MergedBeanDefinitionPostProcessor**对Bean的
+
+
+```java
+
+/**
+ * Post-processor callback interface for <i>merged</i> bean definitions at runtime.
+ * {@link BeanPostProcessor} implementations may implement this sub-interface in
+ * order(优先级) to post-process the merged bean definition that the Spring BeanFactory
+ * uses to create a specific bean instance.
+ *
+ * @author Juergen Hoeller
+ * @since 2.5
+ */
+public interface MergedBeanDefinitionPostProcessor extends BeanPostProcessor {
+
+	/**
+	 * Post-process the given merged bean definition for the specified bean.
+	 * (针对bean definition进行后处理)
+	 * @param beanDefinition the merged bean definition for the bean
+	 * @param beanType the actual type of the managed bean instance
+	 * @param beanName the name of the bean
+	 */
+	void postProcessMergedBeanDefinition(RootBeanDefinition beanDefinition, Class<?> beanType, String beanName);
+
+}
+
+```
+
+通过`MergedBeanDefinitionPostProcessor`丰富了Bean配置方式：
+
+1. 支持修改XML或者@Bean中定义的bean属性。
+2. 支持**注解配置**，如：@Autowired, @PostConstruct。
+
+注意：注解配置信息保存在**后处理器的缓存**中，而非RootBeanDefinition中。
+
 ##### InstantiationAwareBeanPostProcessor
 
+在后处理器中，通过**InstantiationAwareBeanPostProcessor**扩展了**Bean实例化-属性设置**的生命周期管理。
+
+```java
+
+/**
+ * Subinterface of {@link BeanPostProcessor} that adds a before-instantiation(实例化之前) callback,
+ * and a callback after instantiation(实例化完成) but before explicit properties(设置属性之前) are set or
+ * autowiring(@Autowired) occurs.
+ *
+ */
+public interface InstantiationAwareBeanPostProcessor extends BeanPostProcessor {
+
+	/**
+	 * Apply this BeanPostProcessor <i>before the target bean gets instantiated</i>.
+	 * The returned bean object may be a proxy to use instead of the target bean,
+	 * effectively suppressing default instantiation of the target bean.
+	 * <p>If a non-null object is returned by this method, the bean creation process
+	 * will be short-circuited. The only further processing applied is the
+	 * {@link #postProcessAfterInitialization} callback from the configured
+	 * {@link BeanPostProcessor BeanPostProcessors}.
+	 * 
+	 * 在对象实例化之前，会尝试通过这个方法获取一个代理对象。如果返回的对象非空，则返回对象会被容器中注册
+	 * 的"后处理器"执行"BeanPostProcessor#postProcessAfterInitialization"方法，然后结束bean的构造过程。
+	 * 
+	 */
+	Object postProcessBeforeInstantiation(Class<?> beanClass, String beanName) throws BeansException;
+
+	/**
+	 * Perform operations after the bean has been instantiated, via a constructor or factory method,
+	 * but before Spring property population (from explicit properties or autowiring) occurs.
+	 * 
+	 * 在bean被初始化之后，且在属性设置(包括@Autowired)之前，被调用。如果"return false"，则表示这个bean之后
+	 * 不需要进行属性设置(包括@Autowired)。
+	 */
+	boolean postProcessAfterInstantiation(Object bean, String beanName) throws BeansException;
+
+	/**
+	 * Post-process the given property values before the factory applies them
+	 * to the given bean. Allows for checking whether all dependencies have been
+	 * satisfied, for example based on a "Required" annotation on bean property setters.
+	 * <p>Also allows for replacing the property values to apply, typically through
+	 * creating a new MutablePropertyValues instance based on the original PropertyValues,
+	 * adding or removing specific values.
+	 * 
+	 * 在Factory设置属性值到bean之前，可以对属性值进行"后处理"。比如说：对Required标记的属性进行检验。
+	 * 也可以，对要设置的属性进行修改和删除。
+	 */
+	PropertyValues postProcessPropertyValues(
+			PropertyValues pvs, PropertyDescriptor[] pds, Object bean, String beanName)
+			throws BeansException;
+
+}
+
+```
+
+通过`InstantiationAwareBeanPostProcessor`扩展了`BeanPostProcessor`对bean生命周期的管理。
+
+注意：**@Autowired**注入就是通过`InstantiationAwareBeanPostProcessor#postProcessPropertyValues`完成的。详情见**AutowiredAnnotationBeanPostProcessor**
+
 ##### DestructionAwareBeanPostProcessor
+
+通过**DestructionAwareBeanPostProcessor**可以管理bean的destroy过程。比如：容器关闭的时候，注销所有的singleton对象。
+
+```java
+
+/**
+ * Subinterface of {@link BeanPostProcessor} that adds a before-destruction callback.
+ *
+ * <p>The typical usage will be to invoke custom destruction callbacks on
+ * specific bean types, matching corresponding initialization callbacks.
+ */
+public interface DestructionAwareBeanPostProcessor extends BeanPostProcessor {
+
+	/**
+	 * Apply this BeanPostProcessor to the given bean instance before
+	 * its destruction. Can invoke custom destruction callbacks.
+	 * <p>Like DisposableBean's {@code destroy} and a custom destroy method,
+	 * this callback just applies to singleton beans in the factory (including
+	 * inner beans).
+	 * 
+	 * 通过这个方法，可以在对象销毁之前，进行后处理。
+	 */
+	void postProcessBeforeDestruction(Object bean, String beanName) throws BeansException;
+
+}
+
+```
+
+一个bean的销毁的步骤如下（DisposableBeanAdapter#destroy）：
+
+1. 调用容器中所有`DestructionAwareBeanPostProcessor`后处理器进行处理。比如说：`InitDestroyAnnotationBeanPostProcessor`进行处理@PreDestroy注解。
+2. 如果bean实现了`DisposableBean`接口，则调用`DisposableBean#destroy`方法。
+3. 调用bean定义的**自定义**destroy方法。
+
+注意：在容器关闭的时候，会注销所有singleton对象。
 
 #### 关于Ordered
 
