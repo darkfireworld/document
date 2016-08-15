@@ -485,6 +485,170 @@ AnnotationConfigApplicationContext:
 
 可以发现，在调用**refresh**函数之前，beanFactory中已经包含了**注解类型的后处理器**以及**默认的注解配置（SpringConf）**。
 
+**refresh过程：**
+
+```java
+
+AbstractApplicationContext：
+
+    @Override
+	public void refresh() throws BeansException, IllegalStateException {
+		synchronized (this.startupShutdownMonitor) {
+			// Prepare this context for refreshing.
+            // 准备上下文环境
+			prepareRefresh();
+
+			// Tell the subclass to refresh the internal bean factory.
+            // 告诉子类需要进行refresh操作，并且获取它内置的bean factory
+			ConfigurableListableBeanFactory beanFactory = obtainFreshBeanFactory();
+
+			// Prepare the bean factory for use in this context.
+            // 针对当前的上下文，配置相应的特性。比如：添加ApplicationContextAwareProcessor这个后处理器。
+			prepareBeanFactory(beanFactory);
+
+			try {
+				// Allows post-processing of the bean factory in context subclasses.
+                // 允许子类对beanFactory进行后处理
+				postProcessBeanFactory(beanFactory);
+
+				// Invoke factory processors registered as beans in the context.
+                // 实例化并且调用bean factory中注册的BeanFactoryPostProcessor定义
+				invokeBeanFactoryPostProcessors(beanFactory);
+
+				// Register bean processors that intercept bean creation.
+                // 实例化并且注册 bean factory 中的 BeanPostProcessor 定义
+				registerBeanPostProcessors(beanFactory);
+
+				// Initialize message source for this context.
+                // 初始化MessageSource
+				initMessageSource();
+
+				// Initialize event multicaster for this context.
+                // 初始化事件总线
+				initApplicationEventMulticaster();
+
+				// Initialize other special beans in specific context subclasses.
+                // 允许子类初始化特殊的bean对象
+				onRefresh();
+
+				// Check for listener beans and register them.
+                // 注册监听器
+				registerListeners();
+
+				// Instantiate all remaining (non-lazy-init) singletons.
+                // 初始化所有 (non-lazy-init) singletons的bean定义
+				finishBeanFactoryInitialization(beanFactory);
+
+				// Last step: publish corresponding event.
+                // 结束refresh过程
+				finishRefresh();
+			}
+
+			catch (BeansException ex) {
+				...
+			}
+
+			finally {
+				// Reset common introspection caches in Spring's core, since we
+				// might not ever need metadata for singleton beans anymore...
+				resetCommonCaches();
+			}
+		}
+	}
+    
+```
+
+可以发现`AbstractApplicationContext#refresh`控制着容器的初始化过程，重要的子过程为：
+
+1. obtainFreshBeanFactory:告诉子类需要进行refresh操作，并且获取它内置的bean factory
+2. prepareBeanFactory:针对当前的上下文，配置相应的特性。比如：添加ApplicationContextAwareProcessor这个后处理器。
+3. invokeBeanFactoryPostProcessors:实例化并且调用bean factory中注册的BeanFactoryPostProcessor定义。
+4. registerBeanPostProcessors:实例化并且注册 bean factory 中的 BeanPostProcessor 定义
+5. finishBeanFactoryInitialization:初始化所有 (non-lazy-init) singletons的bean定义
+
+基本上，Spring的特性都包含在上述几个步骤中提现。
+
+**obtainFreshBeanFactory:**
+
+```java
+
+AbstractApplicationContext:
+	/**
+	 * Tell the subclass to refresh the internal bean factory.
+	 *
+     * 告诉子类将要refresh当前的内置bean factory，并且返回它的bean factory
+	 */
+	protected ConfigurableListableBeanFactory obtainFreshBeanFactory() {
+        // 比如：GenericApplicationContext这个不可刷新的上下文，
+        // 则仅仅进行对比当前beanFactory是否已经被refresh过，如果是，则抛出异常。
+		refreshBeanFactory();
+        // 获取子类内置的beanFactory
+		ConfigurableListableBeanFactory beanFactory = getBeanFactory();
+		if (logger.isDebugEnabled()) {
+			logger.debug("Bean factory for " + getDisplayName() + ": " + beanFactory);
+		}
+		return beanFactory;
+	}
+    
+```
+
+**prepareBeanFactory:**
+
+```java
+
+AbstractApplicationContext:
+
+    /**
+	 * Configure the factory's standard context characteristics,
+	 * such as the context's ClassLoader and post-processors.
+	 * @param beanFactory the BeanFactory to configure
+     *
+     * 配置标准上下文的特性，比如说ClassLoader，后处理器等。
+	 */
+	protected void prepareBeanFactory(ConfigurableListableBeanFactory beanFactory) {
+		// Tell the internal bean factory to use the context's class loader etc.
+        // 告诉beanFactory使用当前上下文的classloader，以及Environment信息
+		beanFactory.setBeanClassLoader(getClassLoader());
+		beanFactory.setBeanExpressionResolver(new StandardBeanExpressionResolver(beanFactory.getBeanClassLoader()));
+		beanFactory.addPropertyEditorRegistrar(new ResourceEditorRegistrar(this, getEnvironment()));
+
+		// Configure the bean factory with context callbacks.
+        // 配置Aware后处理器
+		beanFactory.addBeanPostProcessor(new ApplicationContextAwareProcessor(this));
+		beanFactory.ignoreDependencyInterface(ResourceLoaderAware.class);
+		beanFactory.ignoreDependencyInterface(ApplicationEventPublisherAware.class);
+		beanFactory.ignoreDependencyInterface(MessageSourceAware.class);
+		beanFactory.ignoreDependencyInterface(ApplicationContextAware.class);
+		beanFactory.ignoreDependencyInterface(EnvironmentAware.class);
+
+		// BeanFactory interface not registered as resolvable type in a plain factory.
+		// MessageSource registered (and found for autowiring) as a bean.
+		beanFactory.registerResolvableDependency(BeanFactory.class, beanFactory);
+		beanFactory.registerResolvableDependency(ResourceLoader.class, this);
+		beanFactory.registerResolvableDependency(ApplicationEventPublisher.class, this);
+		beanFactory.registerResolvableDependency(ApplicationContext.class, this);
+
+		// Detect a LoadTimeWeaver and prepare for weaving, if found.
+		if (beanFactory.containsBean(LOAD_TIME_WEAVER_BEAN_NAME)) {
+			beanFactory.addBeanPostProcessor(new LoadTimeWeaverAwareProcessor(beanFactory));
+			// Set a temporary ClassLoader for type matching.
+			beanFactory.setTempClassLoader(new ContextTypeMatchClassLoader(beanFactory.getBeanClassLoader()));
+		}
+
+		// Register default environment beans.
+        // 注册默认的environment
+		if (!beanFactory.containsLocalBean(ENVIRONMENT_BEAN_NAME)) {
+			beanFactory.registerSingleton(ENVIRONMENT_BEAN_NAME, getEnvironment());
+		}
+		if (!beanFactory.containsLocalBean(SYSTEM_PROPERTIES_BEAN_NAME)) {
+			beanFactory.registerSingleton(SYSTEM_PROPERTIES_BEAN_NAME, getEnvironment().getSystemProperties());
+		}
+		if (!beanFactory.containsLocalBean(SYSTEM_ENVIRONMENT_BEAN_NAME)) {
+			beanFactory.registerSingleton(SYSTEM_ENVIRONMENT_BEAN_NAME, getEnvironment().getSystemEnvironment());
+		}
+	}
+```
+
 #### 容器销毁
 
 ### refresh
