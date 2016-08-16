@@ -1003,16 +1003,9 @@ DefaultListableBeanFactory:
 
 通过`finishBeanFactoryInitialization`方法，容器完成了对**剩余的non-lazt-init singleton**类型bean初始化工作。
 
-#### doGetBean
+#### getBean
 
-在Spring容器中，所有的bean都是通过**doGetBean()**这个API来获取的。大致步骤如下：
-
-1. 实例化bean对象
-2. 依赖属性注入
-3. before-init post processor callback
-4. 调用 init method 
-5. after-init post processor callback
-6. 注册bean到析构链
+在Spring容器中，所有的bean都是通过**getBean->doGetBean**来获取的。下面来看看`doGetBean`这个核心函数。
 
 **doGetBean:**
 
@@ -1162,7 +1155,6 @@ AbstractBeanFactory:
     1. 如果作用域为**singleton**，则通过`getSingleton`函数，来获取bean对象。
     2. 如果作用域为**prototype**，则在进行**循环检测**后，通过`createBean`方法创建对象。
 5. 最后，通过`getObjectForBeanInstance`方法，获取具体的bean对象。
-
 
 
 #### 容器销毁
