@@ -1397,7 +1397,123 @@ AbstractAutowireCapableBeanFactory:
 2. 通过`InstantiationAwareBeanPostProcessor#postProcessPropertyValues`方法，对pvs进行修改或者添加。
 3. 通过`applyPropertyValues`方法，调用**setMethod**方法，设置定义的属性值。
 
-注意，@Autowired注解的实现就是通过`InstantiationAwareBeanPostProcessor#postProcessPropertyValues`实现，具体见：`AutowiredAnnotationBeanPostProcessor`。
+注意，**@Autowired注解**的处理就是通过`InstantiationAwareBeanPostProcessor#postProcessPropertyValues`实现，具体见：`AutowiredAnnotationBeanPostProcessor`。
+
+**initializeBean:**
+
+```java
+
+AbstractAutowireCapableBeanFactory:
+
+    /**
+	 * Initialize the given bean instance, applying factory callbacks
+	 * as well as init methods and bean post processors.
+	 * <p>Called from {@link #createBean} for traditionally defined beans,
+	 * and from {@link #initializeBean} for existing bean instances.
+	 *
+     * 初始化给定的bean实例
+	 */
+	protected Object initializeBean(final String beanName, final Object bean, RootBeanDefinition mbd) {
+		if (System.getSecurityManager() != null) {
+			AccessController.doPrivileged(new PrivilegedAction<Object>() {
+				@Override
+				public Object run() {
+					invokeAwareMethods(beanName, bean);
+					return null;
+				}
+			}, getAccessControlContext());
+		}
+		else {
+            // 注入Aware子接口
+			invokeAwareMethods(beanName, bean);
+		}
+
+		Object wrappedBean = bean;
+		if (mbd == null || !mbd.isSynthetic()) {
+            // 调用后处理->postProcessBeforeInitialization
+			wrappedBean = applyBeanPostProcessorsBeforeInitialization(wrappedBean, beanName);
+		}
+
+		try {
+            // 调用初始化方法
+			invokeInitMethods(beanName, wrappedBean, mbd);
+		}
+		catch (Throwable ex) {
+            ...
+		}
+
+		if (mbd == null || !mbd.isSynthetic()) {
+            // 调用后处理->postProcessAfterInitialization
+			wrappedBean = applyBeanPostProcessorsAfterInitialization(wrappedBean, beanName);
+		}
+		return wrappedBean;
+	}
+    
+```
+
+通过`initializeBean`方法，实现了bean的初始化过程，主要流程为：
+
+1. invokeAwareMethods: 注入一些默认Aware接口，比如说：`BeanNameAware`,`BeanClassLoaderAware`,`BeanFactoryAware`。
+2. applyBeanPostProcessorsBeforeInitialization: 使用后处理`postProcessBeforeInitialization`方法。
+3. invokeInitMethods: 调用`InitializingBean#afterPropertiesSet`以及自定义的init方法。
+4. applyBeanPostProcessorsAfterInitialization:使用后处理`postProcessAfterInitialization`方法。
+
+在上述过程中，通过后处理`postProcessBeforeInitialization`实现了：
+
+1. Aware子接口的注入，详细见：`ApplicationContextAwareProcessor`。
+2. @PostConstruct注解的处理，详细见：`CommonAnnotationBeanPostProcessor`。
+
+而通过后处理`postProcessAfterInitialization`实现了：
+
+1. **pring Aop**，详细见：`AnnotationAwareAspectJAutoProxyCreator`。
+
+到此，bean实例的构造已经算是结束了。接下来，结束一下**析构链**的注册流程。
+
+**registerDisposableBeanIfNecessary:**
+
+接下来说一下bean注册到析构链的过程：
+
+```java
+
+AbstractBeanFactory:
+
+	/**
+	 * Add the given bean to the list of disposable beans in this factory,
+	 * registering its DisposableBean interface and/or the given destroy method
+	 * to be called on factory shutdown (if applicable). Only applies to singletons.
+	 *
+     * 添加可析构的bean到factory的disposable beans列表中。
+	 */
+	protected void registerDisposableBeanIfNecessary(String beanName, Object bean, RootBeanDefinition mbd) {
+		AccessControlContext acc = (System.getSecurityManager() != null ? getAccessControlContext() : null);
+		if (!mbd.isPrototype() && requiresDestruction(bean, mbd)) {
+        
+            // 如果bean(scope!=prototype)是DisposableBean子类，或者具有destroy方法，或者容器中
+            // 存在DestructionAwareBeanPostProcessor类型的后处理器，则需要添加到相应作用域的析构链中
+            
+			if (mbd.isSingleton()) {
+                //单例类型
+				// Register a DisposableBean implementation that performs all destruction
+				// work for the given bean: DestructionAwareBeanPostProcessors,
+				// DisposableBean interface, custom destroy method.
+                // 使用DisposableBeanAdapter包裹bean对象，然后注册到disposableBeans中
+				registerDisposableBean(beanName,
+						new DisposableBeanAdapter(bean, beanName, mbd, getBeanPostProcessors(), acc));
+			}
+			else {
+				// A bean with a custom scope...
+				....
+			}
+		}
+	}
+
+```
+
+通过`registerDisposableBeanIfNecessary`方法，我们将刚刚获取到的bean，使用`DisposableBeanAdapter`包裹它，然后注册到了对应作用域的**析构链**中。
+
+注意：**作用域为prototype的不存在析构链。**
+
+到此为止， `doGetBean` 的实现过程就大致分析完成了。
 
 
 #### 容器销毁
