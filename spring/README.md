@@ -536,7 +536,7 @@ AbstractApplicationContext：
 				registerListeners();
 
 				// Instantiate all remaining (non-lazy-init) singletons.
-                // 初始化所有 (non-lazy-init) singletons的bean定义
+                // 初始化剩余的 (non-lazy-init) singletons的bean定义
 				finishBeanFactoryInitialization(beanFactory);
 
 				// Last step: publish corresponding event.
@@ -564,7 +564,7 @@ AbstractApplicationContext：
 2. prepareBeanFactory:针对当前的上下文，配置相应的特性。比如：添加ApplicationContextAwareProcessor这个后处理器。
 3. invokeBeanFactoryPostProcessors:实例化并且调用bean factory中注册的BeanFactoryPostProcessor定义。
 4. registerBeanPostProcessors:实例化并且注册 bean factory 中的 BeanPostProcessor 定义
-5. finishBeanFactoryInitialization:初始化所有 (non-lazy-init) singletons的bean定义
+5. finishBeanFactoryInitialization:初始化剩余的 (non-lazy-init) singletons的bean定义
 
 基本上，Spring的特性都包含在上述几个步骤中提现。
 
@@ -614,7 +614,7 @@ AbstractApplicationContext:
 
 		// Configure the bean factory with context callbacks.
         // 配置Aware后处理器
-        // 这样子，之后所有的bean都支持Aware的注入。
+        // 这样子，之后所有的bean都支持Aware子接口的注入。
 		beanFactory.addBeanPostProcessor(new ApplicationContextAwareProcessor(this));
 		beanFactory.ignoreDependencyInterface(ResourceLoaderAware.class);
 		beanFactory.ignoreDependencyInterface(ApplicationEventPublisherAware.class);
@@ -925,6 +925,83 @@ PostProcessorRegistrationDelegate:
 
 通过`registerBeanPostProcessors`方法，将容器中的`BeanPostProcessor`定义，按照**优先级**进行初始化，然后注册到容器的**后处理器链**中。
 
+**finishBeanFactoryInitialization:**
+
+在`finishBeanFactoryInitialization`方法中，比较重要的就是关于 **non-lazy singleton** 的bean预初始化了：
+
+```java
+
+AbstractApplicationContext：
+
+    /**
+	 * Finish the initialization of this context's bean factory,
+	 * initializing all remaining singleton beans.
+     *
+     * 结束上下文初始化，并且初始化剩下的sington beans
+	 */
+	protected void finishBeanFactoryInitialization(ConfigurableListableBeanFactory beanFactory) {
+		// Initialize conversion service for this context.
+		if (beanFactory.containsBean(CONVERSION_SERVICE_BEAN_NAME) &&
+				beanFactory.isTypeMatch(CONVERSION_SERVICE_BEAN_NAME, ConversionService.class)) {
+			beanFactory.setConversionService(
+					beanFactory.getBean(CONVERSION_SERVICE_BEAN_NAME, ConversionService.class));
+		}
+
+		// Initialize LoadTimeWeaverAware beans early to allow for registering their transformers early.
+		String[] weaverAwareNames = beanFactory.getBeanNamesForType(LoadTimeWeaverAware.class, false, false);
+		for (String weaverAwareName : weaverAwareNames) {
+			getBean(weaverAwareName);
+		}
+
+		// Stop using the temporary ClassLoader for type matching.
+        // 关闭beanFactory临时classloader
+		beanFactory.setTempClassLoader(null);
+
+		// Allow for caching all bean definition metadata, not expecting further changes.
+        // 允许缓存所有的bean元信息，这些信息不允许再被修改
+		beanFactory.freezeConfiguration();
+
+		// Instantiate all remaining (non-lazy-init) singletons.
+        // 实例化所有剩下的 (non-lazy-init) singleton beans.
+		beanFactory.preInstantiateSingletons();
+	}
+    
+DefaultListableBeanFactory:
+
+    @Override
+	public void preInstantiateSingletons() throws BeansException {
+		if (this.logger.isDebugEnabled()) {
+			this.logger.debug("Pre-instantiating singletons in " + this);
+		}
+
+		// Iterate over a copy to allow for init methods which in turn register new bean definitions.
+		// While this may not be part of the regular factory bootstrap, it does otherwise work fine.
+		List<String> beanNames = new ArrayList<String>(this.beanDefinitionNames);
+
+		// Trigger initialization of all non-lazy singleton beans...
+        // 触发所有 non-lazy singleton beans 的初始化
+		for (String beanName : beanNames) {
+			RootBeanDefinition bd = getMergedLocalBeanDefinition(beanName);
+			if (!bd.isAbstract() && bd.isSingleton() && !bd.isLazyInit()) {
+                // singleton && non-lazt-init
+				if (isFactoryBean(beanName)) {
+                    // 如果beanName指向的bean为FactoryBean类型
+                    // 则通过getBean(FACTORY_BEAN_PREFIX+beanName)，来仅仅初始化BeanFactory对象，而非FactoryBean#getObject()对象。
+					final FactoryBean<?> factory = (FactoryBean<?>) getBean(FACTORY_BEAN_PREFIX + beanName);
+					...
+				}
+				else {
+                    // 获取bean实例
+					getBean(beanName);
+				}
+			}
+		}
+        ...
+	}
+    
+```
+
+通过`finishBeanFactoryInitialization`方法，容器完成了对**剩余的non-lazt-init singleton**类型bean初始化工作。
 
 #### 容器销毁
 
@@ -932,125 +1009,7 @@ PostProcessorRegistrationDelegate:
 
 ```java
     
-AnnotationConfigApplicationContext#init:
 
-        1. 定义一个DefaultListableBeanFactory作为beanFactory
-        2. 加载默认的BeanFactoryPostProcessor处理@Autowired
-        3. 注册给定的 SpringConf
-        
-AbstractApplicationContext#refresh:
-
-    synchronized (this.startupShutdownMonitor) {
-        // 初始化容器环境
-        prepareRefresh();
-
-        // 告诉子类，开始refresh容器，并且最后获取beanFactory
-        ConfigurableListableBeanFactory beanFactory = obtainFreshBeanFactory();
-
-        // 预处理这个beanFactory，添加一些通用的特性
-        // 1. 添加 ApplicationContextAwareProcessor 用来处理 ResourceLoaderAware,ApplicationContextAware,EnvironmentAware
-        // 2. 添加 environment,systemProperties,systemEnvironment 这几种类型的bean对象到singleton对象池中
-        // 3. beanFactory.ignoreDependencyInterface 添加一些被忽略依赖的接口 ???
-        // 4. beanFactory.registerResolvableDependency 添加一些默认依赖解析对象
-        
-        prepareBeanFactory(beanFactory);
-
-        try {
-            // 允许子类进行处理beanFactory
-            postProcessBeanFactory(beanFactory);
-
-            
-            // 调用 BeanFactoryPostProcessor 
-            // 
-            // part1: BeanDefinitionRegistry 类型处理
-            //     如果 beanFactory instanceof BeanDefinitionRegistry 则进行如下流程（默认）
-            //     1. 调用beanFactory中所有的 BeanDefinitionRegistryPostProcessor#postProcessBeanDefinitionRegistry方法，默认为：ConfigurationClassPostProcessor
-            //          1. 调用getBean实例化这个 BeanDefinitionRegistryPostProcessor，存储到集合 processedBeans 中
-            //          2. 通过 BeanDefinitionRegistryPostProcessor#postProcessBeanDefinitionRegistry加载更多的Bean
-            //              1. ConfigurationClassPostProcessor 设置beanFactory#beanDefinitionMap为初始扫描集合S
-            //              2. 通过 ConfigurationClassPostProcessor 通过 ConfigurationClassParser 解析集合S
-            //              3. ConfigurationClassParser 会解析通过注解 @Component 指向的对象，然后分析注解 @ComponentScan,@PropertySources,@ImportResource,@Bean,@Import
-            //              4. 将新添加的bean设置为集合S，如果集合S.size() != 0 ，则循环步骤2(默认 ConfigurationClassParser 会迭代处理步骤三扫描出来的bean)
-            //     2. 检测是否存在新的 BeanDefinitionRegistryPostProcessor 对象，如果存在则继续步骤1。
-            //     3. 调用processedBeans集合中的所有BeanFactoryPostProcessor#postProcessBeanFactory 方法
-            //     
-            // part2: !BeanDefinitionRegistry 类型处理
-            //     1. 获取所有 BeanFactoryPostProcessor 类型，并且实例化，然后调用 BeanFactoryPostProcessor#postProcessBeanFactory 方法
-                
-            invokeBeanFactoryPostProcessors(beanFactory);
-
-            // 实例化 beanFactory中的 BeanPostProcessor，并且注册它们到beanFactory中
-            registerBeanPostProcessors(beanFactory);
-
-            // 初始化国际化支持
-            initMessageSource();
-
-            // 初始化Spring事件总线
-            initApplicationEventMulticaster();
-
-            // 针对特殊的上下文初始化一些特定的bean
-            onRefresh();
-
-            // 注册ApplicationListener的bean都Spring事件总线上
-            registerListeners();
-
-            // 初始化所有非lazy的singleton类型的bena到容器中
-            finishBeanFactoryInitialization(beanFactory);
-
-            // 完成refresh操作，发布相应的事件
-            finishRefresh();
-        }
-
-        catch (BeansException ex) {
-           ...
-        }
-
-        finally {
-            // Reset common introspection caches in Spring's core, since we
-            // might not ever need metadata for singleton beans anymore...
-            resetCommonCaches();
-        }
-    }
-
-DefaultListableBeanFactory#preInstantiateSingletons:
-
-	// Trigger initialization of all non-lazy singleton beans...
-	for (String beanName : beanNames) {
-		RootBeanDefinition bd = getMergedLocalBeanDefinition(beanName);
-		//非抽象类，单例模式，非延迟加载
-		if (!bd.isAbstract() && bd.isSingleton() && !bd.isLazyInit()) {
-        
-			//判断beanName指向的bean是否为 FactoryBean 类型
-            //注意：&beanName表示读取FactoryBean对象
-            
-			if (isFactoryBean(beanName)) {
-                //初始化这个FactoryBean
-				final FactoryBean<?> factory = (FactoryBean<?>) getBean(FACTORY_BEAN_PREFIX + beanName);
-                
-                //特殊的FactoryBean处理，这里不考虑
-				boolean isEagerInit;
-				if (System.getSecurityManager() != null && factory instanceof SmartFactoryBean) {
-					isEagerInit = AccessController.doPrivileged(new PrivilegedAction<Boolean>() {
-						@Override
-						public Boolean run() {
-							return ((SmartFactoryBean<?>) factory).isEagerInit();
-						}
-					}, getAccessControlContext());
-				}
-				else {
-					isEagerInit = (factory instanceof SmartFactoryBean &&
-							((SmartFactoryBean<?>) factory).isEagerInit());
-				}
-				if (isEagerInit) {
-					getBean(beanName);
-				}
-			}
-			else {
-                //直接读取beanName
-				getBean(beanName);
-			}
-		}
-	}
     
 AbstractBeanFactory:doGetBean(getBean->doGetBean):
 
