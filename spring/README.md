@@ -1515,29 +1515,139 @@ AbstractBeanFactory:
 
 到此为止， `doGetBean` 的实现过程就大致分析完成了。
 
-
 #### 容器销毁
 
+现在，我们来简单的介绍一下**容器销毁**的过程。容器销毁的触发条件有两个：
 
+1. 调用`context#registerShutdownHook`方法，然后当JVM关闭的时候，通过`ShutdownHook`回调，执行容器`doClose`方法。
+2. 主动调用`context#close`方法，执行容器`doClose`方法。
 
+而具体实现，是通过`doClose`方法实现的：
 
 ```java
+
+AbstractApplicationContext:
+
+    /**
+	 * Actually performs context closing: publishes a ContextClosedEvent and
+	 * destroys the singletons in the bean factory of this application context.
+	 * <p>Called by both {@code close()} and a JVM shutdown hook, if any.
+     *
+     * 实际执行上下文关闭：发送容器关闭事件，并且销毁singletons。
+	 */
+	protected void doClose() {
+		if (this.active.get() && this.closed.compareAndSet(false, true)) {
+			if (logger.isInfoEnabled()) {
+				logger.info("Closing " + this);
+			}
+
+			LiveBeansView.unregisterApplicationContext(this);
+
+			try {
+				// Publish shutdown event.
+                // 发布容器关闭事件
+				publishEvent(new ContextClosedEvent(this));
+			}
+			catch (Throwable ex) {
+				...
+			}
+
+			...
+
+			// Destroy all cached singletons in the context's BeanFactory.
+            // 销毁singleton cache
+			destroyBeans();
+
+			// Close the state of this context itself.
+            // 关闭容器
+			closeBeanFactory();
+
+			// Let subclasses do some final clean-up if they wish...
+            // 子类清理特定资源机会。
+			onClose();
+
+			this.active.set(false);
+		}
+	}
     
-   
-    
-DisposableBeanAdapter:destroy
-    // 如果bean符合singleton，并且存在析构函数（implements DisposableBean | @PreDestroy ..)
-    // 则会使用 DisposableBeanAdapter 包裹这个bean
-    // 当contextd#close()被调用的时候，就会进行析构所有的singleton
-    
+```
+
+在上述过程中，主要实现的流程如下：
+
+1. 发布容器关闭事件(ContextClosedEvent)
+2. 销毁容器中被缓存的singleton bean对象
+3. 关闭beanFactory
+4. 子类清理特定资源机会
+
+其中，最关键的还是**销毁**容器中的**singleton cache**对象了。
+
+**destroySingletons:**
+
+对于`destroyBeans`方法的调用，会进入`DefaultSingletonBeanRegistry#destroySingletons`方法中，进行销毁singleton cache：
+
+```java
+
+DefaultSingletonBeanRegistry:
+
+    public void destroySingletons() {
+		if (logger.isDebugEnabled()) {
+			logger.debug("Destroying singletons in " + this);
+		}
+		synchronized (this.singletonObjects) {
+			this.singletonsCurrentlyInDestruction = true;
+		}
+        
+        // 注册到singleton析构链上的bean对象
+		String[] disposableBeanNames;
+		synchronized (this.disposableBeans) {
+			disposableBeanNames = StringUtils.toStringArray(this.disposableBeans.keySet());
+		}
+		for (int i = disposableBeanNames.length - 1; i >= 0; i--) {
+            // 析构之前注册的singleton对象，注意，执行的流程是逆序。
+			destroySingleton(disposableBeanNames[i]);
+		}
+        
+        //清空cache信息
+		this.containedBeanMap.clear();
+		this.dependentBeanMap.clear();
+		this.dependenciesForBeanMap.clear();
+
+		synchronized (this.singletonObjects) {
+			this.singletonObjects.clear();
+			this.singletonFactories.clear();
+			this.earlySingletonObjects.clear();
+			this.registeredSingletons.clear();
+			this.singletonsCurrentlyInDestruction = false;
+		}
+	}
+```
+
+通过`DefaultSingletonBeanRegistry#destroySingletons`方法，将先前注册到**析构链 disposableBeans**中的singleton对象依次进行**析构**操作。
+
+**DisposableBeanAdapter#destroy**
+
+在bean完成实例化之后，会将singleton类型的bean注册到析构链 disposableBeans中。而注册的对象是采用**DisposableBeanAdapter**进行包装的。
+所以，在析构bean对象的时候，其实是调用`DisposableBeanAdapter#destroy`方法进行析构：
+
+```java
+
+DisposableBeanAdapter:
+
+    /* Invoked by a BeanFactory on destruction of a singleton.
+	 * @throws Exception in case of shutdown errors.
+	 * Exceptions will get logged but not rethrown to allow
+	 * other beans to release their resources too.
+	 */
     @Override
 	public void destroy() {
 		if (!CollectionUtils.isEmpty(this.beanPostProcessors)) {
+            // 调用DestructionAwareBeanPostProcessor类型的后处理器的postProcessBeforeDestruction方法
+            // 在这个过程中，实现了 @PreDestroy 注解，见CommonAnnotationBeanPostProcessor
 			for (DestructionAwareBeanPostProcessor processor : this.beanPostProcessors) {
 				processor.postProcessBeforeDestruction(this.bean, this.beanName);
 			}
 		}
-
+        // 如果bean实现了DisposableBean接口，则调用它
 		if (this.invokeDisposableBean) {
 			if (logger.isDebugEnabled()) {
 				logger.debug("Invoking destroy() on bean with name '" + this.beanName + "'");
@@ -1553,20 +1663,15 @@ DisposableBeanAdapter:destroy
 					}, acc);
 				}
 				else {
+                    // 调用DisposableBean#destroy方法
 					((DisposableBean) bean).destroy();
 				}
 			}
 			catch (Throwable ex) {
-				String msg = "Invocation of destroy method failed on bean with name '" + this.beanName + "'";
-				if (logger.isDebugEnabled()) {
-					logger.warn(msg, ex);
-				}
-				else {
-					logger.warn(msg + ": " + ex);
-				}
+				...
 			}
 		}
-
+        //调用自定义destroy方法
 		if (this.destroyMethod != null) {
 			invokeCustomDestroyMethod(this.destroyMethod);
 		}
@@ -1577,9 +1682,22 @@ DisposableBeanAdapter:destroy
 			}
 		}
 	}
+    
 ```
 
+通过`DisposableBeanAdapter`代理了singleton bean 析构过程，主要流程为：
 
+1. 调用`DestructionAwareBeanPostProcessor#postProcessBeforeDestruction`方法。
+2. 调用`DisposableBean#destroy`方法
+3. 调用自定义destroy方法。
+
+注意：**@PreDestroy注解**的处理就是通过`DestructionAwareBeanPostProcessor#postProcessBeforeDestruction`完成的，详细见：`CommonAnnotationBeanPostProcessor`。
+
+到此，Spring容器的销毁过程就大致介绍完毕了。
+
+### 小结
+
+Spring最核心的功能就是**Ioc**功能。而Ioc可以通过**后处理器**来进行自定义额外的功能，比如说：@Autowired，@PostConstruct，Spring Aop等。
 
 ## Aop
 
