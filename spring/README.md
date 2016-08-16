@@ -512,7 +512,7 @@ AbstractApplicationContext：
 				postProcessBeanFactory(beanFactory);
 
 				// Invoke factory processors registered as beans in the context.
-                // 实例化并且调用bean factory中注册的BeanFactoryPostProcessor定义
+                // 实例化并且调用bean factory中的 BeanFactoryPostProcessor定义。
 				invokeBeanFactoryPostProcessors(beanFactory);
 
 				// Register bean processors that intercept bean creation.
@@ -562,7 +562,7 @@ AbstractApplicationContext：
 
 1. obtainFreshBeanFactory:告诉子类需要进行refresh操作，并且获取它内置的bean factory
 2. prepareBeanFactory:针对当前的上下文，配置相应的特性。比如：添加ApplicationContextAwareProcessor这个后处理器。
-3. invokeBeanFactoryPostProcessors:实例化并且调用bean factory中注册的BeanFactoryPostProcessor定义。
+3. invokeBeanFactoryPostProcessors:实例化并且调用bean factory中的 BeanFactoryPostProcessor定义。
 4. registerBeanPostProcessors:实例化并且注册 bean factory 中的 BeanPostProcessor 定义
 5. finishBeanFactoryInitialization:初始化剩余的 (non-lazy-init) singletons的bean定义
 
@@ -1003,9 +1003,172 @@ DefaultListableBeanFactory:
 
 通过`finishBeanFactoryInitialization`方法，容器完成了对**剩余的non-lazt-init singleton**类型bean初始化工作。
 
+#### doGetBean
+
+在Spring容器中，所有的bean都是通过**doGetBean()**这个API来获取的。大致步骤如下：
+
+1. 实例化bean对象
+2. 依赖属性注入
+3. before-init post processor callback
+4. 调用 init method 
+5. after-init post processor callback
+6. 注册bean到析构链
+
+**doGetBean:**
+
+现在，来看一下`doGetBean`的代码：
+
+```java
+
+AbstractBeanFactory:
+
+    /**
+	 * Return an instance, which may be shared or independent, of the specified bean.
+	 */
+	@SuppressWarnings("unchecked")
+	protected <T> T doGetBean(
+			final String name, final Class<T> requiredType, final Object[] args, boolean typeCheckOnly)
+			throws BeansException {
+            
+        //截取&beanName->beanName
+		final String beanName = transformedBeanName(name);
+		Object bean;
+
+		// Eagerly check singleton cache for manually registered singletons.
+        //尝试获取beanName指向的单例对象
+		Object sharedInstance = getSingleton(beanName);
+		if (sharedInstance != null && args == null) {
+			if (logger.isDebugEnabled()) {
+				if (isSingletonCurrentlyInCreation(beanName)) {
+					logger.debug("Returning eagerly cached instance of singleton bean '" + beanName +
+							"' that is not fully initialized yet - a consequence of a circular reference");
+				}
+				else {
+					logger.debug("Returning cached instance of singleton bean '" + beanName + "'");
+				}
+			}
+            //获取一个真正的对象，支持FactoryBean类型
+			bean = getObjectForBeanInstance(sharedInstance, name, beanName, null);
+		}
+
+		else {
+			//对Prototype进行循环检测判断
+			if (isPrototypeCurrentlyInCreation(beanName)) {
+				throw new BeanCurrentlyInCreationException(beanName);
+			}
+
+			// 如果beanName指向的对象不在当前beanFactory，并且存在父beanFactory
+            // 则委托父beanFactory进行查询beanName对应的bean
+			BeanFactory parentBeanFactory = getParentBeanFactory();
+			if (parentBeanFactory != null && !containsBeanDefinition(beanName)) {
+				// Not found -> check parent.
+				String nameToLookup = originalBeanName(name);
+				if (args != null) {
+					// Delegation to parent with explicit args.
+					return (T) parentBeanFactory.getBean(nameToLookup, args);
+				}
+				else {
+					// No args -> delegate to standard getBean method.
+					return parentBeanFactory.getBean(nameToLookup, requiredType);
+				}
+			}
+
+			if (!typeCheckOnly) {
+				markBeanAsCreated(beanName);
+			}
+
+			try {
+				final RootBeanDefinition mbd = getMergedLocalBeanDefinition(beanName);
+				checkMergedBeanDefinition(mbd, beanName, args);
+
+				// 读取bean的依赖信息，然后优先初始化依赖bean
+				String[] dependsOn = mbd.getDependsOn();
+				if (dependsOn != null) {
+					for (String dependsOnBean : dependsOn) {
+						if (isDependent(beanName, dependsOnBean)) {
+							throw new BeanCreationException(mbd.getResourceDescription(), beanName,
+									"Circular depends-on relationship between '" + beanName + "' and '" + dependsOnBean + "'");
+						}
+						registerDependentBean(dependsOnBean, beanName);
+						getBean(dependsOnBean);
+					}
+				}
+
+				// Create bean instance.
+				if (mbd.isSingleton()) {
+                    //获取单例对象
+					sharedInstance = getSingleton(beanName, new ObjectFactory<Object>() {
+						@Override
+						public Object getObject() throws BeansException {
+							try {
+								return createBean(beanName, mbd, args);
+							}
+							catch (BeansException ex) {
+								// Explicitly remove instance from singleton cache: It might have been put there
+								// eagerly by the creation process, to allow for circular reference resolution.
+								// Also remove any beans that received a temporary reference to the bean.
+								destroySingleton(beanName);
+								throw ex;
+							}
+						}
+					});
+                    //处理这个单例对象，支持FactoryBean
+					bean = getObjectForBeanInstance(sharedInstance, name, beanName, mbd);
+				}
+
+				else if (mbd.isPrototype()) {
+					// It's a prototype -> create a new instance.
+					Object prototypeInstance = null;
+					try {
+                        // Prototype作用域的beanName 循环引用检测
+						beforePrototypeCreation(beanName);
+                        //创建具体bean对象
+						prototypeInstance = createBean(beanName, mbd, args);
+					}
+					finally {
+                        // 关闭 Prototype作用域的beanName 循环引用检测
+						afterPrototypeCreation(beanName);
+					}
+                    //处理这个单例对象，支持FactoryBean
+					bean = getObjectForBeanInstance(prototypeInstance, name, beanName, mbd);
+				}
+
+				else {
+                    //其他类型作用域的bean创建，这里不展开讨论
+					...
+				}
+			}
+			catch (BeansException ex) {
+				cleanupAfterBeanCreationFailure(beanName);
+				throw ex;
+			}
+		}
+
+		// Check if required type matches the type of the actual bean instance.
+		if (requiredType != null && bean != null && !requiredType.isAssignableFrom(bean.getClass())) {
+			....
+		}
+		return (T) bean;
+	}
+    
+```
+
+`doGetBean`主要实现的流程如下：
+
+1. 截取&beanName->beanName.
+2. 尝试从singleton cache中获取执行beanName的对象，如果存在，则通过`getObjectForBeanInstance`获取具体的bean实例，否则继续。
+3. 获取bean的依赖项，然后初始化这些依赖项。
+4. 根据bean的**作用域**，分别采用不同方式创建bean对象。
+    1. 如果作用域为**singleton**，则通过`getSingleton`函数，来获取bean对象。
+    2. 如果作用域为**prototype**，则在进行**循环检测**后，通过`createBean`方法创建对象。
+5. 最后，通过`getObjectForBeanInstance`方法，获取具体的bean对象。
+
+
+
 #### 容器销毁
 
-### refresh
+
+
 
 ```java
     
