@@ -133,26 +133,6 @@ Java中ClassLoader的加载采用了双亲委托机制，采用双亲委托机�
 
 解决了这个问题，也就顺便的解决了TOMCAT 接口都是由COMMON ClassLoader进行加载Servlet API，而具体的Servlet实现由WebClassLoader 进行加载，并且它们的转换是没有问题的。
 
-## AOP
-
-### Java
-
-这里，再说一下AOP的知识，AOP的一般实现有:
-
-1. 编译时 ： 通过直接重写class 类实现，AOP功能，比较复杂
-
-2. 运行时-载入Class阶段 : 使用特殊的ClassLoader，比较复杂
-
-3. 运行时-动态修改Class ： 读取某一个类的byte[]内容，然后使用ClassLoader#defineClass方法，申请一个类，然后使用它。
-
-4. 运行时-JVM API：通过Java提供的API，进行生成代理。
-
-可以发现，前三种都是通过修改class的byte来达成AOP的目的。而最后一种，是通过JVM提供的API来达成AOP的。
-
-### C语言
-
-因为C语言的特性：**基于偏移量寻址，而非符号**，导致C语言基本上无法实现在**运行时进行AOP操作**，所以常见的方式：**在编译源代码的时候，进行AOP处理**。但是这种方式，还是有许多不足之处。
-
 ## 总结
 
 通过了解ClassLoader，可以学习到JVM的类加载机制，在具体的工作中，可以利用这些特性，比较方便的解决一些 ClassNotFoundException， CAST 异常等问题。
