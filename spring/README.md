@@ -1898,7 +1898,7 @@ o.d.post.MyAop - invoke void org.darkfireworld.bean.impl.ManImpl.say() after
 
 ### 源码剖析
 
-#### 注册
+#### 注册后处理
 
 在Spring4.x中，一般都是通过`AnnotationAwareAspectJAutoProxyCreator`这个后处理器来实现Spring Aop的支持了。
 
@@ -1959,7 +1959,7 @@ AspectJAutoProxyRegistrar:
 到此，就完成了Aop后处理器`AnnotationAwareAspectJAutoProxyCreator`的注册流程了。
 
 
-#### 代理
+#### 代理对象
 
 通过注册`AnnotationAwareAspectJAutoProxyCreator`后处理器，就可以介入到bean生命周期中，从而实现Aop代理：
 
@@ -2017,14 +2017,276 @@ AbstractAutoProxyCreator:
 1. 通过`getAdvicesAndAdvisorsForBean`方法，获取给定bean的**Advice**代码片段。
 2. 如果存在`Advice`，则通过`createProxy`创建代理对象。
 
+我们先看`getAdvicesAndAdvisorsForBean`实现：
 
-#### 调用
+```java
+
+AbstractAdvisorAutoProxyCreator:
+
+	/**
+	 * Return whether the given bean is to be proxied, what additional
+	 * advices (e.g. AOP Alliance interceptors) and advisors to apply.
+	 *
+	 * 返回给定bean的advices。
+	 */
+	@Override
+	protected Object[] getAdvicesAndAdvisorsForBean(Class<?> beanClass, String beanName, TargetSource targetSource) {
+		List<Advisor> advisors = findEligibleAdvisors(beanClass, beanName);
+		if (advisors.isEmpty()) {
+			return DO_NOT_PROXY;
+		}
+		return advisors.toArray();
+	}
+
+AbstractAdvisorAutoProxyCreator:
+
+	/**
+	 * Find all eligible Advisors for auto-proxying this class.
+	 *
+	 * 找到所有给定beanClass的Advisor
+	 */
+	protected List<Advisor> findEligibleAdvisors(Class<?> beanClass, String beanName) {
+		// 寻找到所有的Advisor集合
+		List<Advisor> candidateAdvisors = findCandidateAdvisors();
+		// 寻找能匹配当前beanClass的Advisor集合。
+		List<Advisor> eligibleAdvisors = findAdvisorsThatCanApply(candidateAdvisors, beanClass, beanName);
+		// 扩展给定Advisor集合，这里仅仅添加一个AspectJ指示器。
+		extendAdvisors(eligibleAdvisors);
+		if (!eligibleAdvisors.isEmpty()) {
+			// 根据优先级排序Advisor集合
+			eligibleAdvisors = sortAdvisors(eligibleAdvisors);
+		}
+		//返回Advisor集合
+		return eligibleAdvisors;
+	}
+	
+AnnotationAwareAspectJAutoProxyCreator:
+
+	@Override
+	protected List<Advisor> findCandidateAdvisors() {
+		// Add all the Spring advisors found according to superclass rules.
+		// 添加所有实现Spring Advisor方法的bean
+		List<Advisor> advisors = super.findCandidateAdvisors();
+		// Build Advisors for all AspectJ aspects in the bean factory.
+		// 构造AspectJ类型的Advice，这里我们主要关注这个方法
+		advisors.addAll(this.aspectJAdvisorsBuilder.buildAspectJAdvisors());
+		return advisors;
+	}
+	
+BeanFactoryAspectJAdvisorsBuilder:
+
+	/**
+	 * Look for AspectJ-annotated aspect beans in the current bean factory,
+	 * and return to a list of Spring AOP Advisors representing them.
+	 * <p>Creates a Spring Advisor for each AspectJ advice method.
+	 *
+	 * 查询所有AspectJ注解类型的bean。并且返回Spring Aop Advisors集合。
+	 */
+	public List<Advisor> buildAspectJAdvisors() {
+		List<String> aspectNames = null;
+
+		synchronized (this) {
+			aspectNames = this.aspectBeanNames;
+			// 判断是否已经缓存过@Aspect的beanName
+			if (aspectNames == null) {
+				List<Advisor> advisors = new LinkedList<Advisor>();
+				aspectNames = new LinkedList<String>();
+				// 遍历容器中所有的bean定义
+				String[] beanNames =
+						BeanFactoryUtils.beanNamesForTypeIncludingAncestors(this.beanFactory, Object.class, true, false);
+				for (String beanName : beanNames) {
+					if (!isEligibleBean(beanName)) {
+						continue;
+					}
+					// We must be careful not to instantiate beans eagerly as in this
+					// case they would be cached by the Spring container but would not
+					// have been weaved
+					// 我们必须小心的处理这些bean，尽量避免初始化他们
+					Class<?> beanType = this.beanFactory.getType(beanName);
+					if (beanType == null) {
+						continue;
+					}
+					// 判断当前beanType是否被@Aspect注解
+					if (this.advisorFactory.isAspect(beanType)) {
+						// 添加到aspectNames集合中
+						aspectNames.add(beanName);
+						AspectMetadata amd = new AspectMetadata(beanType, beanName);
+						// 判断amd类型信息
+						if (amd.getAjType().getPerClause().getKind() == PerClauseKind.SINGLETON) {
+							// 构造AspectJ织入类的元信息
+							MetadataAwareAspectInstanceFactory factory =
+									new BeanFactoryAspectInstanceFactory(this.beanFactory, beanName);
+							// 获取具体的Advisor列表
+							// 注意，返回的Advisor也会包裹AspectJ织入对象的beanName，
+							// 只有在执行Advisor的时候，才会通过context#getBean获取它
+							List<Advisor> classAdvisors = this.advisorFactory.getAdvisors(factory);
+							if (this.beanFactory.isSingleton(beanName)) {
+								this.advisorsCache.put(beanName, classAdvisors);
+							}
+							else {
+								this.aspectFactoryCache.put(beanName, factory);
+							}
+							advisors.addAll(classAdvisors);
+						}
+						else {
+							...
+						}
+					}
+				}
+				// 添加到缓存中
+				this.aspectBeanNames = aspectNames;
+				return advisors;
+			}
+		}
+
+		if (aspectNames.isEmpty()) {
+			return Collections.emptyList();
+		}
+		// 通过 advisorsCache 和 advisorFactory 构造Advisor集合
+		List<Advisor> advisors = new LinkedList<Advisor>();
+		for (String aspectName : aspectNames) {
+			List<Advisor> cachedAdvisors = this.advisorsCache.get(aspectName);
+			if (cachedAdvisors != null) {
+				advisors.addAll(cachedAdvisors);
+			}
+			else {
+				MetadataAwareAspectInstanceFactory factory = this.aspectFactoryCache.get(aspectName);
+				advisors.addAll(this.advisorFactory.getAdvisors(factory));
+			}
+		}
+		return advisors;
+	}
+
+ReflectiveAspectJAdvisorFactory:
+	/**
+	 * Build Spring AOP Advisors for all annotated At-AspectJ methods
+	 * on the specified aspect instance.
+	 *
+	 * 通过AspectJ的注解构造符合Spring AOP Advisor集合。
+	 */
+	@Override
+	public List<Advisor> getAdvisors(MetadataAwareAspectInstanceFactory aspectInstanceFactory) {
+		Class<?> aspectClass = aspectInstanceFactory.getAspectMetadata().getAspectClass();
+		String aspectName = aspectInstanceFactory.getAspectMetadata().getAspectName();
+		validate(aspectClass);
+
+		// We need to wrap the MetadataAwareAspectInstanceFactory with a decorator
+		// so that it will only instantiate once.
+		// 通过MetadataAwareAspectInstanceFactory包裹AspectJ织入对象信息，使得这个AspectJ织入对象仅仅初始化一次
+		// 注意，AspectJ织入对象只有在相应的Advisor执行的时候，才会通过context#getBean() 获取对象。
+		MetadataAwareAspectInstanceFactory lazySingletonAspectInstanceFactory =
+				new LazySingletonAspectInstanceFactoryDecorator(aspectInstanceFactory);
+
+		// 通过方法，属性等元素，构造Advisor集合
+		List<Advisor> advisors = new LinkedList<Advisor>();
+		for (Method method : getAdvisorMethods(aspectClass)) {
+			Advisor advisor = getAdvisor(method, lazySingletonAspectInstanceFactory, advisors.size(), aspectName);
+			if (advisor != null) {
+				advisors.add(advisor);
+			}
+		}
+
+		// If it's a per target aspect, emit the dummy instantiating aspect.
+		if (!advisors.isEmpty() && lazySingletonAspectInstanceFactory.getAspectMetadata().isLazilyInstantiated()) {
+			Advisor instantiationAdvisor = new SyntheticInstantiationAdvisor(lazySingletonAspectInstanceFactory);
+			advisors.add(0, instantiationAdvisor);
+		}
+
+		// Find introduction fields.
+		for (Field field : aspectClass.getDeclaredFields()) {
+			Advisor advisor = getDeclareParentsAdvisor(field);
+			if (advisor != null) {
+				advisors.add(advisor);
+			}
+		}
+
+		return advisors;
+	}
+```
+
+上述的过程就是`getAdvicesAndAdvisorsForBean`的大致流程：
+
+1. 获取bean factory中所有的Advisor集合，包括了：**Advisor和@Aspect**类型。
+2. 获取Advisor集合中能**匹配**beanClass的Advisor。
+3. **排序**Advisor集合
+
+注意：**AspectJ织入对象只有在执行相应的Advisor的时候，才会通过context#getBean() 获取它。**
+
+来看一下最后获取到的Advisor信息：
+
+![](9513.tmp.jpg)
+
+可以发现，自定义的`MyAop`已经被识别到了。
+
+现在，我们在看看`createProxy`的过程：
+
+```java
+
+AbstractAutoProxyCreator:
+
+	/**
+	 * Create an AOP proxy for the given bean.
+     * 
+	 * 创建给定bean的Aop代理
+	 */
+	protected Object createProxy(
+			Class<?> beanClass, String beanName, Object[] specificInterceptors, TargetSource targetSource) {
+
+		...
+		//创建一个代理工厂
+		ProxyFactory proxyFactory = new ProxyFactory();
+		...
+		
+		// 通过拦截器构造Advisor集合
+		Advisor[] advisors = buildAdvisors(beanName, specificInterceptors);
+		// 加入到代理工厂中
+		for (Advisor advisor : advisors) {
+			proxyFactory.addAdvisor(advisor);
+		}
+		// 设置代理目标
+		proxyFactory.setTargetSource(targetSource);
+		...
+		// 通过代理工厂，获取具体bean的代理对象
+		return proxyFactory.getProxy(getProxyClassLoader());
+	}
+	
+ProxyFactory:
+
+	/**
+	 * Create a new proxy according to the settings in this factory.
+	 * <p>Can be called repeatedly. Effect will vary if we've added
+	 * or removed interfaces. Can add and remove interceptors.
+	 * <p>Uses the given class loader (if necessary for proxy creation).
+	 *
+	 * 创建一个被代理的对象
+	 */
+	public Object getProxy(ClassLoader classLoader) {
+		//1. 获取jdk或者cglib的代理支持
+		//2. 构造具体的代理对象
+		return createAopProxy().getProxy(classLoader);
+	}
+```
+
+上述，就是`createProxy`的大致流程了。
 
 ### 小结
 
+通过**AspectJ In Spring Aop**这种Aop方式已经可以应付大部分的场景了。当然，Spring Aop还有其他分支:
+
+1. @EnableLoadTimeWeaving
+2. Spring Advisor
+
+这两种方式，其实和`AspectJ In Spring Aop`类似，都是通过后处理器完成的。
+
 ## Tx
 
-事务实现机制
+### 注解式事务
+
+### 多数据源事务
+
+### 分布式事务
+
+## Jms
 
 ## Mvc
 
