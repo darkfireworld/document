@@ -2116,10 +2116,10 @@ BeanFactoryAspectJAdvisorsBuilder:
 							// 构造AspectJ织入类的元信息
 							MetadataAwareAspectInstanceFactory factory =
 									new BeanFactoryAspectInstanceFactory(this.beanFactory, beanName);
-							// 获取具体的Advisor列表
-							// 注意，返回的Advisor也会包裹AspectJ织入对象的beanName，
-							// 只有在执行Advisor的时候，才会通过context#getBean获取它
+							// 获取具体的Advisor列表。注意，返回的Advisor也会包裹AspectJ织
+							// 入对象的beanName，只有在执行Advisor的时候，才会通过context#getBean获取它
 							List<Advisor> classAdvisors = this.advisorFactory.getAdvisors(factory);
+							// 加入到相应的缓存中
 							if (this.beanFactory.isSingleton(beanName)) {
 								this.advisorsCache.put(beanName, classAdvisors);
 							}
@@ -2154,52 +2154,6 @@ BeanFactoryAspectJAdvisorsBuilder:
 				advisors.addAll(this.advisorFactory.getAdvisors(factory));
 			}
 		}
-		return advisors;
-	}
-
-ReflectiveAspectJAdvisorFactory:
-	/**
-	 * Build Spring AOP Advisors for all annotated At-AspectJ methods
-	 * on the specified aspect instance.
-	 *
-	 * 通过AspectJ的注解构造符合Spring AOP Advisor集合。
-	 */
-	@Override
-	public List<Advisor> getAdvisors(MetadataAwareAspectInstanceFactory aspectInstanceFactory) {
-		Class<?> aspectClass = aspectInstanceFactory.getAspectMetadata().getAspectClass();
-		String aspectName = aspectInstanceFactory.getAspectMetadata().getAspectName();
-		validate(aspectClass);
-
-		// We need to wrap the MetadataAwareAspectInstanceFactory with a decorator
-		// so that it will only instantiate once.
-		// 通过MetadataAwareAspectInstanceFactory包裹AspectJ织入对象信息，使得这个AspectJ织入对象仅仅初始化一次
-		// 注意，AspectJ织入对象只有在相应的Advisor执行的时候，才会通过context#getBean() 获取对象。
-		MetadataAwareAspectInstanceFactory lazySingletonAspectInstanceFactory =
-				new LazySingletonAspectInstanceFactoryDecorator(aspectInstanceFactory);
-
-		// 通过方法，属性等元素，构造Advisor集合
-		List<Advisor> advisors = new LinkedList<Advisor>();
-		for (Method method : getAdvisorMethods(aspectClass)) {
-			Advisor advisor = getAdvisor(method, lazySingletonAspectInstanceFactory, advisors.size(), aspectName);
-			if (advisor != null) {
-				advisors.add(advisor);
-			}
-		}
-
-		// If it's a per target aspect, emit the dummy instantiating aspect.
-		if (!advisors.isEmpty() && lazySingletonAspectInstanceFactory.getAspectMetadata().isLazilyInstantiated()) {
-			Advisor instantiationAdvisor = new SyntheticInstantiationAdvisor(lazySingletonAspectInstanceFactory);
-			advisors.add(0, instantiationAdvisor);
-		}
-
-		// Find introduction fields.
-		for (Field field : aspectClass.getDeclaredFields()) {
-			Advisor advisor = getDeclareParentsAdvisor(field);
-			if (advisor != null) {
-				advisors.add(advisor);
-			}
-		}
-
 		return advisors;
 	}
 ```
