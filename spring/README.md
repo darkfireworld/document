@@ -2165,8 +2165,9 @@ BeanFactoryAspectJAdvisorsBuilder:
 3. **排序**Advisor集合
 
 注意：**AspectJ织入对象只有在执行相应的Advisor的时候，才会通过context#getBean() 获取它。**
+详细可见(断点)：`LazySingletonAspectInstanceFactoryDecorator#getAspectInstance`。
 
-来看一下最后获取到的Advisor信息：
+现在来看一下最后获取到的Advisor信息：
 
 ![](9513.tmp.jpg)
 
