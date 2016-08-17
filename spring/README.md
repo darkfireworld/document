@@ -1146,7 +1146,14 @@ AbstractBeanFactory:
     
 ```
 
-`doGetBean`主要实现的流程如下：
+这里，来补充说明一下**通过Type获取bean**的流程：
+
+1. 通过Type解析出对应的beanName。
+2. 然后beanName，然后调用`doGetBean`获取bean实例。
+
+这样子，就完成了通过Type获取Bean的功能了。
+
+现在来介绍一下`doGetBean`主要流程：
 
 1. 截取&beanName->beanName.
 2. 尝试从singleton cache中获取执行beanName的对象，如果存在，则通过`getObjectForBeanInstance`获取具体的bean实例，否则继续。
@@ -1165,6 +1172,7 @@ AbstractBeanFactory:
 5. 返回bean对象。
 
 所以，相比较`prototype`的流程，`singleton`的流程仅仅增加了singleton cache处理。
+
 
 **createBean:**
 
@@ -1703,7 +1711,7 @@ Spring最核心的功能就是**Ioc**功能。而Ioc可以通过**后处理器**
 
 AOP 实现的几种方式
 
-http://blog.jobbole.com/28791/
+
 
 AbstractAutoProxyCreator:postProcessBeforeInstantiation
 
@@ -1853,7 +1861,6 @@ AbstractAutoProxyCreator:postProcessAfterInitialization
 注意：同类相互调用AOP失效
 
 
-@EnableLoadTimeWeaving
 ## Tx
 
 事务实现机制
@@ -1862,3 +1869,7 @@ AbstractAutoProxyCreator:postProcessAfterInitialization
 
 MVC处理流程
 
+## 参考
+
+* [Spring Bean的生命周期](http://www.cnblogs.com/zrtqsk/p/3735273.html)
+* [Spring AOP 实现原理与 CGLIB 应用](http://blog.jobbole.com/28791/)
