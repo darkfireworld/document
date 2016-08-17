@@ -2231,7 +2231,7 @@ ProxyFactory:
 1. @EnableLoadTimeWeaving
 2. Spring Advisor
 
-这两种方式，其实和`AspectJ In Spring Aop`类似，都是通过后处理器完成的。
+这两种方式，其实和`AspectJ In Spring Aop`类似，也都是通过后处理器完成的。
 
 ## Tx
 
