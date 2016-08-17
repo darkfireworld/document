@@ -1850,6 +1850,22 @@ public class MyAop {
     }
 }
 
+
+@Component
+public class ManImpl implements Man {
+    Logger logger = LoggerFactory.getLogger(this.getClass());
+
+    public void say() {
+        logger.error("Say Crazy");
+        test();
+    }
+
+    public void test() {
+        logger.error("test Aop");
+    }
+
+}
+
 ```
 
 这里最关心的就是切点表达式了，这里来介绍一下**@Pointcut表达式**：
@@ -1865,6 +1881,20 @@ public class MyAop {
     <li>throw-pattern: 指定方法声明抛出的异常，支持通配符，该部分可以省略</li>
 </ul>
 
+执行日志：
+
+```
+
+o.d.post.MyAop - invoke void org.darkfireworld.bean.impl.ManImpl.say() before
+o.d.b.i.ManImpl - Say Crazy
+o.d.b.i.ManImpl - test Aop
+o.d.post.MyAop - invoke void org.darkfireworld.bean.impl.ManImpl.say() after
+
+```
+
+可以发现，在调用`ManImpl#say`的时候，Aop已经正常工作了。
+
+观察上面的日志，可以发现，如果是**同类相互调用(say->test)，Aop将会失效**，这个就是使用Spring Aop动态代理的缺点之一。
 
 ### 源码分析
 
