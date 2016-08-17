@@ -1711,9 +1711,9 @@ Spring最核心的功能就是**Ioc**功能。而Ioc可以通过**后处理器**
 
 在软件业，AOP为Aspect Oriented Programming的缩写，意为：**面向切面编程**，通过**预编译方式**和**运行期动态代理**实现程序功能的统一维护的一种技术。
 
-### Aop实现方式
+### Aop机制
 
-Aop实现的机制主要是通过修改**Class字节码**的方式实现。大致实现的方式有：
+Aop的实现主要是通过修改**Class字节码**的方式实现。大致实现的方式有：
 
 <table>
     <tr>
@@ -1764,9 +1764,107 @@ Aop实现的机制主要是通过修改**Class字节码**的方式实现。大�
     </tr>
 </table>
 
-### AspectJ Aop
+### Aop术语
 
-### Spring Aop
+在Aop中存在一些标准术语：
+
+* **JoinPoint**：拦截点，比如说某个业务方法。
+* **PointCut**：描述Joinpoint的表达式，表示需要拦截哪些方法。
+* **Advice**：需要切入的逻辑代码。比如说：调用统计等。
+
+Aop处理器通过Pointcut表达式，搜索需要被切入的Jointpoint，然后织入Advice。
+
+### Aop类库
+
+在Java中存在各种类型的Aop类库：`AspectJ`，`cglib`，`javassist`，`spring aop`...。
+
+看到这么多Aop实现，相信大家都会有点懵逼。这里来梳理一下它们的关系。
+
+#### AspectJ
+
+**AspectJ**是一套Java Aop的解决方案，它的前身是AspectWerkz（2005年停止更新），主要组成为：
+
+1. aspectjweaver.jar: AspectJ关于Aop术语模型，如：Pointcut，Advice等。
+2. aspectjrt.jar：AspectJ运行时支持类。
+3. ajc：AspectJ的编译器。
+
+AspectJ是通过ajc编译.class文件，**静态**织入advice的方式实现Aop功能的。
+
+#### cglib
+
+cglib(Code Generation Library)是一个开源项目，它可以在运行期扩展Java类与实现Java接口。
+
+**原理**：通过**动态生成字节码**的方式，创建一个目标类的子类，然后注册到JVM中。
+
+这样子，cglib就可以动态代理目标对象了。
+
+注意：`cglib`和`javassist`比较类似，但是cglib基本停止开发了。
+
+#### Spring Aop
+
+最初的Spring仅仅就是一个Ioc容器，后来，因为需要支持企业级开发。引入了Aop的功能：
+
+1. aopalliance.jar：Aop 术语声明包。
+2. cglib.jar：Aop具体实现类库。
+
+通过`aopalliance`和`cglib`实现了最初**xml配置**类型的Spring Aop功能。
+
+而在后来，为了减轻xml配置的繁琐性，引入了**声明式**Spring Aop：
+
+1. aspectjweaver.jar: AspectJ的Aop术语声明包。
+2. cglib.jar：Aop具体实现。
+
+相比较，完整的AspectJ解决方案，声明式Spring Aop更加简单。
+
+### AspectJ In Spring
+
+为了使用注解是AspectJ的功能，我们需要先开启AspectJ功能模块：
+
+* 注解方式：`@EnableAspectJAutoProxy`
+* XML方式：`<aop:aspectj-autoproxy />`
+
+这时候，Spring容器中就会添加一个后处理器：`AnnotationAwareAspectJAutoProxyCreator`。
+
+我们来看一下比较简单的例子：
+
+```java
+
+@Component
+//标记为Spring Aop类
+@Aspect
+public class MyAop {
+    Logger logger = LoggerFactory.getLogger(this.getClass());
+
+    //指定 org.darkfireworld.bean..* 下面所有的类
+    @Pointcut("execution(* org.darkfireworld.bean..*.*(..))")
+    void pointCut() {
+    }
+
+    //声明环绕通知
+    @Around("pointCut()")
+    public Object around(ProceedingJoinPoint pjp) throws Throwable {
+        logger.error("invoke " + pjp.getSignature().toString() + " before");
+        Object o = pjp.proceed();
+        logger.error("invoke " + pjp.getSignature().toString() + " after");
+        return o;
+    }
+}
+
+```
+
+这里最关心的就是切点表达式了，这里来介绍一下**@Pointcut表达式**：
+
+> execution( modifier-pattern? ret-type-pattern declaring-type-pattern? name-pattern(param-pattern) throws-pattern?)
+
+<ul>
+    <li> modifier-pattern: 指定方法的修饰符，支持通配符，该部分可以省略</li>
+    <li>ret-type-pattern: 指定返回值类型，支持通配符，可以使用"*"来通配所有的返回值类型</li>
+    <li>declaring-type-pattern: 指定方法所属的类，支持通配符，该部分可以省略。<strong>注意，最后面需要添加"."字符。</strong></li>
+    <li>name-pattern: 指定匹配的方法名，支持通配符，可以使用"*"来通配所有的方法名</li>
+    <li>param-pattern: 指定方法的形参列表，支持两个通配符，"*"和".."，其中"*"代表一个任意类型的参数，而".."代表0个或多个任意类型的参数。</li>
+    <li>throw-pattern: 指定方法声明抛出的异常，支持通配符，该部分可以省略</li>
+</ul>
+
 
 ### 源码分析
 
@@ -1934,4 +2032,5 @@ MVC处理流程
 ## 参考
 
 * [Spring Bean的生命周期](http://www.cnblogs.com/zrtqsk/p/3735273.html)
+* [AOP的实现机制](http://www.iteye.com/topic/1116696)
 * [Spring AOP 实现原理与 CGLIB 应用](http://blog.jobbole.com/28791/)
