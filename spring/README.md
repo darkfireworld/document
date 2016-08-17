@@ -1896,80 +1896,111 @@ o.d.post.MyAop - invoke void org.darkfireworld.bean.impl.ManImpl.say() after
 
 观察上面的日志，可以发现，如果是**同类相互调用(say->test)，Aop将会失效**，这个就是使用Spring Aop动态代理的缺点之一。
 
-### 源码分析
+### 源码剖析
 
-### 小结
+#### 注册
+
+在Spring4.x中，一般都是通过`AnnotationAwareAspectJAutoProxyCreator`这个后处理器来实现Spring Aop的支持了。
+
+通过`@EnableAspectJAutoProxy`注解，容器会加载这个后处理器。
+
+```java
+
+EnableAspectJAutoProxy:
+
+    @Target(ElementType.TYPE)
+    @Retention(RetentionPolicy.RUNTIME)
+    @Documented
+    @Import(AspectJAutoProxyRegistrar.class)
+    public @interface EnableAspectJAutoProxy {
+
+        /**
+         * Indicate whether subclass-based (CGLIB) proxies are to be created as opposed
+         * to standard Java interface-based proxies. The default is {@code false}.
+         */
+        boolean proxyTargetClass() default false;
+
+    }
+
+AspectJAutoProxyRegistrar:
+
+    class AspectJAutoProxyRegistrar implements ImportBeanDefinitionRegistrar {
+
+        /**
+         * Register, escalate, and configure the AspectJ auto proxy creator based on the value
+         * of the @{@link EnableAspectJAutoProxy#proxyTargetClass()} attribute on the importing
+         * {@code @Configuration} class.
+         */
+        @Override
+        public void registerBeanDefinitions(
+                AnnotationMetadata importingClassMetadata, BeanDefinitionRegistry registry) {
+                
+            // 注册 AnnotationAwareAspectJAutoProxyCreator 后处理器到容器中
+            AopConfigUtils.registerAspectJAnnotationAutoProxyCreatorIfNecessary(registry);
+            
+            // 判断开启Aop代理的类型（强制cglib还是自适应）
+            AnnotationAttributes enableAJAutoProxy =
+                    AnnotationConfigUtils.attributesFor(importingClassMetadata, EnableAspectJAutoProxy.class);
+            if (enableAJAutoProxy.getBoolean("proxyTargetClass")) {
+                AopConfigUtils.forceAutoProxyCreatorToUseClassProxying(registry);
+            }
+        }
+
+    }
+```
+
+调用流程如下：
+
+1. 容器调用`ConfigurationClassPostProcessor#postProcessBeanDefinitionRegistry`后处理器，添加新的BeanDefinition到容器中。
+2. `ConfigurationClassPostProcessor`使用**ConfigurationClassParser**这个帮助类，分析配置类信息。
+3. `ConfigurationClassParser`调用**processImports**方法处理@Import注解信息。
+4. 分析@EnableAspectJAutoProxy这个注解，然后调用`AspectJAutoProxyRegistrar#registerBeanDefinitions`方法，最后注册Aop后处理器到容器中。
+
+到此，就完成了Aop后处理器`AnnotationAwareAspectJAutoProxyCreator`的注册流程了。
 
 
-AOP 实现的几种方式
+#### 代理
 
+通过注册`AnnotationAwareAspectJAutoProxyCreator`后处理器，就可以介入到bean生命周期中，从而实现Aop代理：
 
+```java
 
-AbstractAutoProxyCreator:postProcessBeforeInstantiation
+AbstractAutoProxyCreator:
 
-    @Override
-	public Object postProcessBeforeInstantiation(Class<?> beanClass, String beanName) throws BeansException {
-		Object cacheKey = getCacheKey(beanClass, beanName);
-
-		if (beanName == null || !this.targetSourcedBeans.contains(beanName)) {
-			if (this.advisedBeans.containsKey(cacheKey)) {
-				return null;
-			}
-			if (isInfrastructureClass(beanClass) || shouldSkip(beanClass, beanName)) {
-				this.advisedBeans.put(cacheKey, Boolean.FALSE);
-				return null;
-			}
-		}
-
-		// Create proxy here if we have a custom TargetSource.
-		// Suppresses unnecessary default instantiation of the target bean:
-		// The TargetSource will handle target instances in a custom fashion.
-		if (beanName != null) {
-			TargetSource targetSource = getCustomTargetSource(beanClass, beanName);
-			if (targetSource != null) {
-				this.targetSourcedBeans.add(beanName);
-				Object[] specificInterceptors = getAdvicesAndAdvisorsForBean(beanClass, beanName, targetSource);
-				Object proxy = createProxy(beanClass, beanName, specificInterceptors, targetSource);
-				this.proxyTypes.put(cacheKey, proxy.getClass());
-				return proxy;
-			}
-		}
-
-		return null;
-	}
-    
-    
-AbstractAutoProxyCreator:postProcessAfterInitialization
-
+	/**
+	 * Create a proxy with the configured interceptors if the bean is
+	 * identified as one to proxy by the subclass.
+	 *
+     * 针对被标识的bean进行代理。
+	 */
 	@Override
 	public Object postProcessAfterInitialization(Object bean, String beanName) throws BeansException {
 		if (bean != null) {
 			Object cacheKey = getCacheKey(bean.getClass(), beanName);
 			if (!this.earlyProxyReferences.contains(cacheKey)) {
-                // 生成代理类
+                // 尝试进行代理bean
 				return wrapIfNecessary(bean, beanName, cacheKey);
 			}
 		}
 		return bean;
 	}
+    
+AbstractAutoProxyCreator:
 
-    protected Object wrapIfNecessary(Object bean, String beanName, Object cacheKey) {
-		if (beanName != null && this.targetSourcedBeans.contains(beanName)) {
-			return bean;
-		}
-		if (Boolean.FALSE.equals(this.advisedBeans.get(cacheKey))) {
-			return bean;
-		}
-		if (isInfrastructureClass(bean.getClass()) || shouldSkip(bean.getClass(), beanName)) {
-			this.advisedBeans.put(cacheKey, Boolean.FALSE);
-			return bean;
-		}
-        // 如果存在Advice，则进行代理生成
+    /**
+	 * Wrap the given bean if necessary, i.e. if it is eligible for being proxied.
+	 *
+     * 尝试代理给定的bean
+	 */
+	protected Object wrapIfNecessary(Object bean, String beanName, Object cacheKey) {
+		...
+
 		// Create proxy if we have advice.
+        // 判断给定的bean是否具有切入代码
 		Object[] specificInterceptors = getAdvicesAndAdvisorsForBean(bean.getClass(), beanName, null);
 		if (specificInterceptors != DO_NOT_PROXY) {
 			this.advisedBeans.put(cacheKey, Boolean.TRUE);
-            //创建代理
+            // 创建代理对象
 			Object proxy = createProxy(
 					bean.getClass(), beanName, specificInterceptors, new SingletonTargetSource(bean));
 			this.proxyTypes.put(cacheKey, proxy.getClass());
@@ -1979,77 +2010,17 @@ AbstractAutoProxyCreator:postProcessAfterInitialization
 		this.advisedBeans.put(cacheKey, Boolean.FALSE);
 		return bean;
 	}
-    
-    protected Object createProxy(
-			Class<?> beanClass, String beanName, Object[] specificInterceptors, TargetSource targetSource) {
+```
 
-		if (this.beanFactory instanceof ConfigurableListableBeanFactory) {
-			AutoProxyUtils.exposeTargetClass((ConfigurableListableBeanFactory) this.beanFactory, beanName, beanClass);
-		}
+通过后处理`postProcessAfterInitialization`，实现了对aop的实现，具体过程：
 
-		ProxyFactory proxyFactory = new ProxyFactory();
-		proxyFactory.copyFrom(this);
+1. 通过`getAdvicesAndAdvisorsForBean`方法，获取给定bean的**Advice**代码片段。
+2. 如果存在`Advice`，则通过`createProxy`创建代理对象。
 
-		if (!proxyFactory.isProxyTargetClass()) {
-			if (shouldProxyTargetClass(beanClass, beanName)) {
-				proxyFactory.setProxyTargetClass(true);
-			}
-			else {
-				evaluateProxyInterfaces(beanClass, proxyFactory);
-			}
-		}
-        // 创建具体的Advisor
-		Advisor[] advisors = buildAdvisors(beanName, specificInterceptors);
-		for (Advisor advisor : advisors) {
-			proxyFactory.addAdvisor(advisor);
-		}
 
-		proxyFactory.setTargetSource(targetSource);
-		customizeProxyFactory(proxyFactory);
+#### 调用
 
-		proxyFactory.setFrozen(this.freezeProxy);
-		if (advisorsPreFiltered()) {
-			proxyFactory.setPreFiltered(true);
-		}
-        
-		return proxyFactory.getProxy(getProxyClassLoader());
-	}
-    
-    
-	public Object getProxy(ClassLoader classLoader) {
-		return createAopProxy().getProxy(classLoader);
-	}
-    
-	protected final synchronized AopProxy createAopProxy() {
-		if (!this.active) {
-			activate();
-		}
-		return getAopProxyFactory().createAopProxy(this);
-	}
-
-    @Override
-	public AopProxy createAopProxy(AdvisedSupport config) throws AopConfigException {
-		if (config.isOptimize() || config.isProxyTargetClass() || hasNoUserSuppliedProxyInterfaces(config)) {
-			Class<?> targetClass = config.getTargetClass();
-			if (targetClass == null) {
-				throw new AopConfigException("TargetSource cannot determine target class: " +
-						"Either an interface or a target is required for proxy creation.");
-			}
-			if (targetClass.isInterface() || Proxy.isProxyClass(targetClass)) {
-                //jdk
-				return new JdkDynamicAopProxy(config);
-			}
-            //cglib
-			return new ObjenesisCglibAopProxy(config);
-		}
-		else {
-            //jdk
-			return new JdkDynamicAopProxy(config);
-		}
-	}
-    
-   
-
+### 小结
 
 ## Tx
 
