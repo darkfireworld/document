@@ -1709,6 +1709,70 @@ Spring最核心的功能就是**Ioc**功能。而Ioc可以通过**后处理器**
 
 ## Aop
 
+在软件业，AOP为Aspect Oriented Programming的缩写，意为：**面向切面编程**，通过**预编译方式**和**运行期动态代理**实现程序功能的统一维护的一种技术。
+
+### Aop实现方式
+
+Aop实现的机制主要是通过修改**Class字节码**的方式实现。大致实现的方式有：
+
+<table>
+    <tr>
+        <th>类型</th>
+        <th>机制</th>
+        <th>优点</th>
+        <th>缺点</th>
+    </tr>
+    
+    <!--静态Aop-->
+    <tr>
+        <td>静态Aop</td>
+        <td>通过在<strong>编译期</strong>，直接修改字节码的方式完成Aop</td>
+        <td>性能较好</td>
+        <td>需要第三方编译器支持</td>
+    </tr>
+    
+    <!--javaagent-->
+    <tr>
+        <td>javaagent</td>
+        <td>利用Java 5提供新特性`Instrumentation`，开发者可以对加载的字节码进行转换。</td>
+        <td>性能比较好，通用性强</td>
+        <td>需要使用特殊命令启动Java</td>
+    </tr>
+    
+    <!--ClassLoader-->
+    <tr>
+        <td>ClassLoader</td>
+        <td>使用自定义的Cl加载Class文件的时候，修改字节码。</td>
+        <td>性能比较好，通用性强</td>
+        <td>需要自定义ClassLoader</td>
+    </tr>
+    
+    <!--接口代理-->
+    <tr>
+        <td>接口代理</td>
+        <td>使用JVM提供的动态代理的方式，为接口生成代理类</td>
+        <td>实现比较简单<td>
+        <td>仅仅支持接口类型代理</td>
+    </tr>
+    
+    <!--子类动态-->
+    <tr>
+        <td>子类动态</td>
+        <td>通过生成子类的方式，对目标进行代理</td>
+        <td>实现比较简单，能对非接口类进行代理</td>
+        <td><strong>同类相互调用Aop失效</strong></td>
+    </tr>
+</table>
+
+### AspectJ Aop
+
+### Spring Aop
+
+### 源码分析
+
+### 小结
+
+
 AOP 实现的几种方式
 
 
@@ -1856,9 +1920,7 @@ AbstractAutoProxyCreator:postProcessAfterInitialization
 		}
 	}
     
-    
-    
-注意：同类相互调用AOP失效
+   
 
 
 ## Tx
