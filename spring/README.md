@@ -1149,7 +1149,7 @@ AbstractBeanFactory:
 这里，来补充说明一下**通过Type获取bean**的流程：
 
 1. 通过Type解析出对应的beanName。
-2. 然后beanName，然后调用`doGetBean`获取bean实例。
+2. 然后调用`doGetBean`获取bean实例。
 
 这样子，就完成了通过Type获取Bean的功能了。
 
