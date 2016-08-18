@@ -837,6 +837,7 @@ PostProcessorRegistrationDelegate:
 
 1. Invoke都会通过`PriorityOrdered`，`Ordered` ，`Non-Ordered`方式进行排序，避免工厂后处理器依赖的问题。
 2. **只能**通过`BeanDefinitionRegistryPostProcessor`这个工厂后处理器添加新的`BeanDefinition`到容器中。
+3. 在此阶段，Spring仅仅会搜集`BeanDefinition`到容器中，最大程度避免Bean的初始化(包括`@Configuration`配置类)。
 
 **registerBeanPostProcessors:**
 
@@ -1311,7 +1312,24 @@ AbstractAutowireCapableBeanFactory:
 		// Make sure bean class is actually resolved at this point.
         // 解析实际的class对象
 		Class<?> beanClass = resolveBeanClass(mbd, beanName);
+        ...
         
+        // 通过工厂方法进行实例化
+		if (mbd.getFactoryMethodName() != null)  {
+			return instantiateUsingFactoryMethod(beanName, mbd, args);
+		}
+
+		...
+
+		// Need to determine the constructor...
+        // 通过构造函数进行初始化
+		Constructor<?>[] ctors = determineConstructorsFromBeanPostProcessors(beanClass, beanName);
+		if (ctors != null ||
+				mbd.getResolvedAutowireMode() == RootBeanDefinition.AUTOWIRE_CONSTRUCTOR ||
+				mbd.hasConstructorArgumentValues() || !ObjectUtils.isEmpty(args))  {
+			return autowireConstructor(beanName, mbd, ctors, args);
+		}
+
         ...
 
 		// No special handling: simply use no-arg constructor.
@@ -1322,7 +1340,13 @@ AbstractAutowireCapableBeanFactory:
 
 ```
 
-对于bean的实例化，其实是比较简单的。一般来说，都是通过**无参数构造函数**进行实例化bean对象。
+对于bean的实例化，大致分为三种类型：
+
+1. instantiateUsingFactoryMethod: 通过工厂方法进行实例化
+2. autowireConstructor: 通过构造方法进行实例化
+3. instantiateBean: 通过无参数构造函数进行实例化
+
+注意：如果Bean通过`@Bean`进行定义，则会采用**工厂方法**进行实例化。此时，@Bean方法所在的对象(@Configuration标记)会通过`getBean`获取（实例化）。
 
 **populateBean:**
 
