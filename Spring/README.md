@@ -2,7 +2,7 @@
 
 * [Ioc](Ioc.md)
 * [Aop](Aop.md)
-* [Tx](tx.md)
+* [Tx](Tx.md)
 * [Jms](Jms.md)
 * [Mvc](Mvc.md)
 
