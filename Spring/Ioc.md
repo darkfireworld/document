@@ -375,7 +375,7 @@ Spring在初始化和使用**BeanFactoryPostProcessor和BeanPostProcessor**的�
 
 ![](E790.tmp.jpg)
 
-通过上述的`Annotations`基本上可以完成注解式Bean配置。
+通过上述的`Annotations`可以实现比较基础的Bean配置。更加高级的可以参考`@Configuration`，`@Bean`以及`@Import`注解。
 
 #### 关于FactoryBean
 
