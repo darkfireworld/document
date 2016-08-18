@@ -837,7 +837,7 @@ PostProcessorRegistrationDelegate:
 
 1. Invoke都会通过`PriorityOrdered`，`Ordered` ，`Non-Ordered`方式进行排序，避免工厂后处理器依赖的问题。
 2. **只能**通过`BeanDefinitionRegistryPostProcessor`这个工厂后处理器添加新的`BeanDefinition`到容器中。
-3. 在此阶段，Spring仅仅会搜集`BeanDefinition`到容器中，最大程度避免Bean的初始化(包括`@Configuration`配置类)。
+3. 在此阶段，Spring仅仅会搜集`BeanDefinition`到容器中，最大程度避免Bean在`finishBeanFactoryInitialization`之前初始化(包括`@Configuration`配置类)。
 
 **registerBeanPostProcessors:**
 
