@@ -371,6 +371,12 @@ Spring在初始化和使用**BeanFactoryPostProcessor和BeanPostProcessor**的�
 
 可以发现，spring中许多特性，如：@Autowired，@PostConstruct，@PreDestroy，Aop等，都是通过**后处理器**完成的。
 
+#### 关于Annotations
+
+![](E790.tmp.jpg)
+
+通过上述的`Annotations`基本上可以完成注解式Bean配置。
+
 #### 关于FactoryBean
 
 在Spring中，Bean的构造也可以通过**FactoryBean**来构造，通过`FactoryBean`可以更加自由的控制bean的生成：
