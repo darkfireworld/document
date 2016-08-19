@@ -1503,7 +1503,7 @@ AbstractAutowireCapableBeanFactory:
 
 而通过后处理`postProcessAfterInitialization`实现了：
 
-1. **pring Aop**，详细见：`AnnotationAwareAspectJAutoProxyCreator`。
+1. **Spring Aop**，详细见：`AnnotationAwareAspectJAutoProxyCreator`。
 
 到此，bean实例的构造已经算是结束了。接下来，结束一下**析构链**的注册流程。
 
