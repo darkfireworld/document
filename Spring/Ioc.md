@@ -95,7 +95,9 @@ public interface BeanDefinitionRegistryPostProcessor extends BeanFactoryPostProc
 
 显然，通过`BeanDefinitionRegistryPostProcessor#postProcessBeanDefinitionRegistry`方法，可以添加一些新的`BeanDefinition`到beanFactory中。
 
-当前，Spring就是通过`public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPostProcessor`这个类，实现了**基于注解配置**的功能。
+重要实现类：
+
+1. **ConfigurationClassPostProcessor**: 实现了**基于注解配置@Configuration**的功能
 
 #### BeanPostProcessor
 
@@ -155,9 +157,13 @@ public interface BeanPostProcessor {
 
 ```
 
-Spring Aop其实就是通过`BeanPostProcessor#postProcessAfterInitialization`来实现的，详情见**AnnotationAwareAspectJAutoProxyCreator**。
-
 注意：虽然`BeanPostProcessor`接口申明的方法，仅仅只能管理bean在**设置属性后**的生命周期，但是它的**子接口**拥有更大的权限。
+
+重要实现类：
+
+1. **CommonAnnotationBeanPostProcessor**: `@PostConstruct`，`@PreDestroy`实现类
+2. **ApplicationContextAwareProcessor**: `Aware`子类接口注入。
+3. **AnnotationAwareAspectJAutoProxyCreator**: Spring Aop 实现类
 
 现在，我们再来看看`BeanPostProcessor`的子接口，通过子接口，可以拥有更大的权限，来操作bean的生命周期。
 
@@ -260,7 +266,9 @@ public interface InstantiationAwareBeanPostProcessor extends BeanPostProcessor {
 
 通过`InstantiationAwareBeanPostProcessor`扩展了`BeanPostProcessor`对bean生命周期的管理。
 
-注意：**@Autowired**注入就是通过`InstantiationAwareBeanPostProcessor#postProcessPropertyValues`完成的。详情见**AutowiredAnnotationBeanPostProcessor**
+重要实现类：
+
+1. **AutowiredAnnotationBeanPostProcessor**: `@Autowired`注解实现类。
 
 ##### DestructionAwareBeanPostProcessor
 
@@ -293,11 +301,15 @@ public interface DestructionAwareBeanPostProcessor extends BeanPostProcessor {
 
 一个bean的销毁的步骤如下（DisposableBeanAdapter#destroy）：
 
-1. 调用容器中所有`DestructionAwareBeanPostProcessor`后处理器进行处理。比如说：`InitDestroyAnnotationBeanPostProcessor`进行处理@PreDestroy注解。
+1. 调用容器中所有`DestructionAwareBeanPostProcessor`后处理器进行处理。
 2. 如果bean实现了`DisposableBean`接口，则调用`DisposableBean#destroy`方法。
 3. 调用bean定义的**自定义**destroy方法。
 
 注意：在容器关闭的时候，会注销所有singleton对象。
+
+重要实现类：
+
+1. **InitDestroyAnnotationBeanPostProcessor**：`@PreDestroy`注解实现类。
 
 #### 关于Ordered
 
