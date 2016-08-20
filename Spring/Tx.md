@@ -2,18 +2,29 @@
 
 ## Tx
 
-### 注解式事务
+### 例子
 
-当Java 5引入注解后，Spring就开始支持注解式事务了，极大的方便了开发者。
+#### Single DataSource
 
-### 事务传播
+#### Multi DataSource
 
-### 事务隔离
+##### 本地事务
 
-### 重要接口
+##### JTA
 
-### 源码剖析
+##### 弱XA
+
+
+
+### 重要类
+
+#### @Transactional
+
+
+
+
+### 源码分析
 
 ## 参考
 
-
+* [JTA 深度历险 - 原理与实现](http://www.ibm.com/developerworks/cn/java/j-lo-jta/)
