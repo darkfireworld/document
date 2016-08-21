@@ -1170,6 +1170,8 @@ AbstractBeanFactory:
 1. 通过Type解析出对应的beanName。
 2. 然后调用`doGetBean`获取bean实例。
 
+注意：当目标Type是被`FactoryBean<Type>`代理的时候，容器也会分析出该目标Type对应的beanName。
+
 这样子，就完成了通过Type获取Bean的功能了。
 
 现在来介绍一下`doGetBean`主要流程：

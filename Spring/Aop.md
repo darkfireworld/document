@@ -358,7 +358,7 @@ AnnotationAwareAspectJAutoProxyCreator:
 	@Override
 	protected List<Advisor> findCandidateAdvisors() {
 		// Add all the Spring advisors found according to superclass rules.
-		// 添加所有实现Spring Advisor方法的bean
+		// 添加所有实现Spring Advisor方法的bean，支持FactoryBean<Advisor>类型。
 		List<Advisor> advisors = super.findCandidateAdvisors();
 		// Build Advisors for all AspectJ aspects in the bean factory.
 		// 构造AspectJ类型的Advice，这里我们主要关注这个方法

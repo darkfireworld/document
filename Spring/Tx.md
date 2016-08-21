@@ -310,13 +310,66 @@ public @interface Transactional {
 
 注意：在MySQL中默认采用`READ REPEATABLE`默认。
 
-### 重要类
-
-在源码分析之前，我们先看一下Spring事务管理中，重要的类。
-
-
 
 ### 源码分析
+
+接下来，我们来分析一下**Spring注解式事务**的实现过程。
+
+#### 接口和类
+
+这里，我们先介绍一些重要的类和接口。
+
+**基础模块：**
+
+* PlatformTransactionManager: 事务管理器接口。
+* TransactionDefinition: 事务定义接口。
+* TransactionStatus: 事务状态接口。
+
+上述三个都是接口类型，是Spring事务的核心接口类。
+
+**通用模块：**
+
+* AbstractPlatformTransactionManager: 默认事务管理器。
+* DefaultTransactionDefinition: 默认事务定义类。
+* DefaultTransactionStatus: 默认事务状态类。
+* TransactionSynchronization: 事务同步-回调。
+* TransactionSynchronizationManager: 事务同步管理器-当前事务资源管理。
+
+上述的类和接口都是比较通用的模块，一般都是继承于它们实现具体的功能。
+
+![](A676.tmp.jpg)
+
+可以发现`AbstractPlatformTransactionManager`的实现类就是各种数据源的事务管理器。
+
+**拦截模块：**
+
+* TransactionProxyFactoryBean: 通过手动配置被拦截的方法。
+* BeanFactoryTransactionAttributeSourceAdvisor: `Advisor`接口的实现类，用于对bean进行事务代理。
+* TransactionInterceptor: 事务拦截器具体业务代码。
+* DefaultTransactionAttribute: `TransactionAttribute`的实现类。
+* TransactionAttribute: `TransactionDefinition`的子接口，通过定义`getQualifier`方法，指定使用的事务管理器。
+* TransactionAttributeSource: 给定一个`Method`，然后读取`TransactionAttribute`信息。
+
+通过`BeanFactoryTransactionAttributeSourceAdvisor`或者`TransactionProxyFactoryBean`对目标方法
+使用`TransactionInterceptor`进行拦截，从而实现事务特性。
+
+**注解模块：**
+
+* @EnableTransactionManagement: 注解式配置的事务注解。
+* AnnotationTransactionAttributeSource:`TransactionAttributeSource`的实现类，用于管理`TransactionAnnotationParser`解析器。
+* TransactionAnnotationParser: 事务注解分析器。
+* SpringTransactionAnnotationParser: Spring @Transactional事务注解扫描
+* JtaTransactionAnnotationParser: Jta事务注解扫描。
+* @Transactional: Spring 事务注解
+* Isolation: 事务隔离级别
+* Propagation: 事务传播属性
+
+通过上述的注解，就可以通过注解的方式，完成Spring事务管理了。
+
+#### 初始化
+
+#### 执行事务
+
 
 ### 扩展知识
 
