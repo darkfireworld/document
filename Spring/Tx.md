@@ -595,7 +595,8 @@ TransactionAspectSupport:
 
 可见`invokeWithinTransaction`方法是事务管理的**核心过程**。接下来，将依次分析各个自过程。
 
-** createTransactionIfNecessary: **
+
+**createTransactionIfNecessary:**
 
 ```java
 
@@ -629,9 +630,7 @@ TransactionAspectSupport:
 1. **status = tm.getTransaction(txAttr)**: 事务的创建，并且获取当前事务状态信息。
 2. **prepareTransactionInfo**: 保存本次事务上下文信息。
 
-这样子，就将目标方法加入到事务管理当中了。
-
-
+这样子，就开启了**目标方法**的事务管理，接下来就可以调用具体的业务逻辑了。
 
 ### 扩展知识
 
