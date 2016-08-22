@@ -506,6 +506,98 @@ public class ProxyTransactionManagementConfiguration extends AbstractTransaction
 
 #### 执行事务
 
+在调用***目标方法**的时候，都会调用`TransactionInterceptor#invoke`方法进行拦截:
+
+```java
+
+TransactionInterceptor:
+
+	@Override
+	public Object invoke(final MethodInvocation invocation) throws Throwable {
+		// Work out the target class: may be {@code null}.
+		// The TransactionAttributeSource should be passed the target class
+		// as well as the method, which may be from an interface.
+		Class<?> targetClass = (invocation.getThis() != null ? AopUtils.getTargetClass(invocation.getThis()) : null);
+
+		// Adapt to TransactionAspectSupport's invokeWithinTransaction...
+        // 调用父类的invokeWithinTransaction方法，实现事务管理.
+		return invokeWithinTransaction(invocation.getMethod(), targetClass, new InvocationCallback() {
+			@Override
+			public Object proceedWithInvocation() throws Throwable {
+				return invocation.proceed();
+			}
+		});
+	}
+    
+TransactionAspectSupport:
+
+    /**
+	 * General delegate for around-advice-based subclasses, delegating to several other template
+	 * methods on this class. Able to handle {@link CallbackPreferringPlatformTransactionManager}
+	 * as well as regular {@link PlatformTransactionManager} implementations.
+	 *
+     * 通用事务代理处理方法。
+	 */
+	protected Object invokeWithinTransaction(Method method, Class<?> targetClass, final InvocationCallback invocation)
+			throws Throwable {
+
+		// If the transaction attribute is null, the method is non-transactional.
+        // 读取事务定义
+		final TransactionAttribute txAttr = getTransactionAttributeSource().getTransactionAttribute(method, targetClass);
+        // 通过事务定义，获取事务管理器，如果txAttr没有指定事务管理器的名字，则采用默认事务管理器
+		final PlatformTransactionManager tm = determineTransactionManager(txAttr);
+        // 读取切入点
+		final String joinpointIdentification = methodIdentification(method, targetClass);
+
+		if (txAttr == null || !(tm instanceof CallbackPreferringPlatformTransactionManager)) {
+			// Standard transaction demarcation with getTransaction and commit/rollback calls.
+            // 如果有必要，则开启一个事务
+			TransactionInfo txInfo = createTransactionIfNecessary(tm, txAttr, joinpointIdentification);
+			Object retVal = null;
+			try {
+				// This is an around advice: Invoke the next interceptor in the chain.
+				// This will normally result in a target object being invoked.
+                // 调用业务代码
+				retVal = invocation.proceedWithInvocation();
+			}
+			catch (Throwable ex) {
+				// target invocation exception
+                // 发生异常处理
+				completeTransactionAfterThrowing(txInfo, ex);
+				throw ex;
+			}
+			finally {
+                // 清理本次事务记录信息
+				cleanupTransactionInfo(txInfo);
+			}
+            // 尝试提交本次事务
+			commitTransactionAfterReturning(txInfo);
+			return retVal;
+		}
+		else {
+			...
+		}
+	}
+```
+
+此时调用栈为：
+
+![](B5FC.tmp.jpg)
+
+业务逻辑**test**执行之前，调用了`invokeWithinTransaction`方法，其大致流程为：
+
+1. 读取目标方法的事务定义信息：`TransactionAttribute`。
+2. 通过`TransactionAttribute#getQualifier`获取一个**事务管理器**。如果`getQualifier`返回null，则使用**默认**的事务管理器。
+3. 调用`createTransactionIfNecessary`方法，开启一个事务（如果有必要）。
+4. 调用业务代码，如果发生异常，则调用`completeTransactionAfterThrowing`方法处理（尝试事务回滚）它。
+5. 调用`cleanupTransactionInfo`清理本次事务记录信息。
+6. 调用`commitTransactionAfterReturning`尝试提交本次事务（如果存在事务，且已经完成该事务）。
+
+可见`invokeWithinTransaction`方法是事务管理的**核心过程**。接下来，将依次分析各个自过程。
+
+**createTransactionIfNecessary: **
+
+
 
 ### 扩展知识
 
