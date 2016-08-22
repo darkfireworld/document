@@ -597,7 +597,41 @@ TransactionAspectSupport:
 
 ** createTransactionIfNecessary: **
 
-d
+```java
+
+	/**
+	 * Create a transaction if necessary based on the given TransactionAttribute.
+	 *
+     * 根据TransactionAttribute定义，如果有必要，则创建一个事务。
+	 */
+	@SuppressWarnings("serial")
+	protected TransactionInfo createTransactionIfNecessary(
+			PlatformTransactionManager tm, TransactionAttribute txAttr, final String joinpointIdentification) {
+
+        ....
+        
+		TransactionStatus status = null;
+		if (txAttr != null) {
+			if (tm != null) {
+                // 给定事务注解信息，通过事务管理器获取当前事务状态信息。注意：可能并未开启事务
+				status = tm.getTransaction(txAttr);
+			}
+			...
+		}
+        // 保存本次事务上下文到ThreadLocal中，最后形成 TransactionInfo Stack。
+		return prepareTransactionInfo(tm, txAttr, joinpointIdentification, status);
+	}
+
+```
+
+通过`createTransactionIfNecessary`方法，主要完成两个功能：
+
+1. **status = tm.getTransaction(txAttr)**: 事务的创建，并且获取当前事务状态信息。
+2. **prepareTransactionInfo**: 保存本次事务上下文信息。
+
+这样子，就将目标方法加入到事务管理当中了。
+
+
 
 ### 扩展知识
 
