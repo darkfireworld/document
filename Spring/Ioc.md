@@ -844,11 +844,11 @@ PostProcessorRegistrationDelegate:
 
 其实，这个阶段比较重要的是`ConfigurationClassPostProcessor`这个支持**注解配置**的工厂后处理器，它实现了如下特性：
 
-1. @Bean
-2. @ComponentScan
-3. @Import
+1. @Bean: 声明一个Bean定义。
+2. @ComponentScan: 扫描指定包下面的@Component标记的Bean定义。
+3. @Import: 加载指定的配置类，如SpringConf。
 
-在容器初始化阶段，通过`@ConfigurationClassPostProcessor`这个后处理器，分析`@Configuration`注解的配置类(SpringConf)，动态添加@Bean标注的`BeanDefinition`到容器中。
+在容器初始化阶段，通过`ConfigurationClassPostProcessor`这个后处理器，分析`@Configuration`注解的配置类(SpringConf)，动态添加@Bean标注的`BeanDefinition`到容器中。
 
 注意：
 
