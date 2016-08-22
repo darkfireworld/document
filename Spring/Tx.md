@@ -344,7 +344,7 @@ public @interface Transactional {
 **拦截模块：**
 
 * TransactionProxyFactoryBean: 通过手动配置被拦截的方法。
-* BeanFactoryTransactionAttributeSourceAdvisor: `Advisor`接口的实现类，用于对bean进行事务代理。
+* BeanFactoryTransactionAttributeSourceAdvisor: `Advisor`接口的实现类，事务注入管理器。
 * TransactionInterceptor: 事务拦截器具体业务代码。
 * DefaultTransactionAttribute: `TransactionAttribute`的实现类。
 * TransactionAttribute: `TransactionDefinition`的子接口，通过定义`getQualifier`方法，指定使用的事务管理器。
@@ -367,6 +367,142 @@ public @interface Transactional {
 通过上述的注解，就可以通过注解的方式，完成Spring事务管理了。
 
 #### 初始化
+
+对于Spring事务初始化，大致分为两个步骤：
+
+1. 加载阶段：加载事务相关Bean（数据源，事务管理器，事务Aop处理器，JdbcTemplate）到容器中。
+2. 注入阶段：利用Spring Aop特性，注入事务相关代码。
+
+注意：在本文中，默认采用**注解式事务**处理。
+
+**加载阶段：**
+
+在上述的DEMO中，我们采用`@EnableTransactionManagement`的方式开启Spring事务特性：
+
+```java
+
+@Target(ElementType.TYPE)
+@Retention(RetentionPolicy.RUNTIME)
+@Documented
+// 导入 TransactionManagementConfigurationSelector 选择器
+@Import(TransactionManagementConfigurationSelector.class)
+public @interface EnableTransactionManagement {
+
+	/**
+	 * Indicate whether subclass-based (CGLIB) proxies are to be created ({@code true}) as
+	 * opposed to standard Java interface-based proxies ({@code false}). The default is
+	 *
+     * AOP模式选择 
+	 */
+	boolean proxyTargetClass() default false;
+
+	/**
+	 * Indicate how transactional advice should be applied. The default is
+	 * {@link AdviceMode#PROXY}.
+	 * @see AdviceMode
+	 */
+	AdviceMode mode() default AdviceMode.PROXY;
+
+	/**
+	 * Indicate the ordering of the execution of the transaction advisor
+	 * when multiple advices are applied at a specific joinpoint.
+	 *
+     * 优先级
+	 */
+	int order() default Ordered.LOWEST_PRECEDENCE;
+
+}
+
+```
+
+然后通过**@Import**注解，(解析代码：`ConfigurationClassParser#collectImports`)，引入了`@TransactionManagementConfigurationSelector`类：
+
+```java
+
+public class TransactionManagementConfigurationSelector extends AdviceModeImportSelector<EnableTransactionManagement> {
+
+	/**
+	 * {@inheritDoc}
+	 * @return {@link ProxyTransactionManagementConfiguration} or
+	 * {@code AspectJTransactionManagementConfiguration} for {@code PROXY} and
+	 * {@code ASPECTJ} values of {@link EnableTransactionManagement#mode()}, respectively
+	 */
+	@Override
+	protected String[] selectImports(AdviceMode adviceMode) {
+		switch (adviceMode) {
+			case PROXY:
+				return new String[] {AutoProxyRegistrar.class.getName(), ProxyTransactionManagementConfiguration.class.getName()};
+			case ASPECTJ:
+				return new String[] {TransactionManagementConfigUtils.TRANSACTION_ASPECT_CONFIGURATION_CLASS_NAME};
+			default:
+				return null;
+		}
+	}
+
+}
+
+
+```
+
+而在`TransactionManagementConfigurationSelector`中，通过`AdviceMode`做出选择，到底使用什么模式（AspectJ,Proxy）处理Aop，默认为**PROXY模式**：
+
+```java
+
+
+@Configuration
+public class ProxyTransactionManagementConfiguration extends AbstractTransactionManagementConfiguration {
+
+	@Bean(name = TransactionManagementConfigUtils.TRANSACTION_ADVISOR_BEAN_NAME)
+	@Role(BeanDefinition.ROLE_INFRASTRUCTURE)
+	public BeanFactoryTransactionAttributeSourceAdvisor transactionAdvisor() {
+		BeanFactoryTransactionAttributeSourceAdvisor advisor = new BeanFactoryTransactionAttributeSourceAdvisor();
+		advisor.setTransactionAttributeSource(transactionAttributeSource());
+		advisor.setAdvice(transactionInterceptor());
+		advisor.setOrder(this.enableTx.<Integer>getNumber("order"));
+		return advisor;
+	}
+
+	@Bean
+	@Role(BeanDefinition.ROLE_INFRASTRUCTURE)
+	public TransactionAttributeSource transactionAttributeSource() {
+		return new AnnotationTransactionAttributeSource();
+	}
+
+	@Bean
+	@Role(BeanDefinition.ROLE_INFRASTRUCTURE)
+	public TransactionInterceptor transactionInterceptor() {
+		TransactionInterceptor interceptor = new TransactionInterceptor();
+		interceptor.setTransactionAttributeSource(transactionAttributeSource());
+		if (this.txManager != null) {
+			interceptor.setTransactionManager(this.txManager);
+		}
+		return interceptor;
+	}
+
+}
+
+
+```
+
+通过`ProxyTransactionManagementConfiguration`配置类，加载了几个Bean定义：
+
+1. BeanFactoryTransactionAttributeSourceAdvisor: `Advisor`接口的实现类，事务注入管理器。
+2. TransactionAttributeSource: 从Method中读取事务注解信息。
+3. TransactionInterceptor: 拦截器，也就是具体的事务Aop代码。
+
+可以发现，`BeanFactoryTransactionAttributeSourceAdvisor`相当于事务注入的管理器，将`TransactionAttributeSource`
+和`TransactionInterceptor`整合在一起。
+
+**注入阶段：**
+
+通过利用Spring Aop的特性，可以非常方便的对一个Bean注入事务代码，流程如下：
+
+1. 在Bean完成创建后，会调用`BeanPostProcessor#postProcessAfterInitialization`后处理，此时**Spring Aop后处理**将会被调用到。
+2. Spring Aop读取容器中所有**Advisor**的实现类，其中就包括了`BeanFactoryTransactionAttributeSourceAdvisor`这个事务Aop管理器。
+3. `BeanFactoryTransactionAttributeSourceAdvisor`委托`TransactionAttributeSource`接口，寻找待注入的**目标方法**。
+4. 如果发现**目标方法**，则将注入`TransactionInterceptor`这个事务拦截器到目标方法。
+
+这样子，就完成了对**目标方法**事务管理。
 
 #### 执行事务
 
