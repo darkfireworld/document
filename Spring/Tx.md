@@ -584,7 +584,7 @@ TransactionAspectSupport:
 
 ![](B5FC.tmp.jpg)
 
-业务逻辑**test**执行之前，调用了`invokeWithinTransaction`方法，其大致流程为：
+执行**业务逻辑test方法**之前，调用了`invokeWithinTransaction`方法，其大致流程为：
 
 1. 读取目标方法的事务定义信息：`TransactionAttribute`。
 2. 通过`TransactionAttribute#getQualifier`获取一个**事务管理器**。如果`getQualifier`返回null，则使用**默认**的事务管理器。
