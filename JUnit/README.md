@@ -556,12 +556,14 @@ Spring 通过`SpringJUnit4ClassRunner`来支持JUnit。通过`SpringJUnit4ClassR
 1. ApplicationContext仅仅初始化一次。
 2. SpringMVC 支持
 3. @Autowired 支持
-4. @Transactional和@Rollback支持
+4. @Rollback 支持
 
-SpringJUnit4ClassRunner继承于BlockJUnit4ClassRunner对象，通过重写`构造函数`和`createTest`来实现了以上的特性：
+SpringJUnit4ClassRunner继承于BlockJUnit4ClassRunner对象，覆盖了如下方法：
 
 1. **构造函数**：ApplicationContext仅仅初始化一次。
-2. **createTest**：@Autowired IOC支持 和 @Transactional和@Rollback 等AOP支持。
+2. **methodBlock**：支持 @Autowired 注解(**createTest**方法)，@Rollback注解(**withBefores**方法)等特性。
+
+通过`覆盖`父类方法，就实现了`SpringJUnit4ClassRunner`的特性。
 
 ## 最佳实践
 
