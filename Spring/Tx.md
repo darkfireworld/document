@@ -595,9 +595,9 @@ TransactionAspectSupport:
 
 可见`invokeWithinTransaction`方法是事务管理的**核心过程**。接下来，将依次分析各个自过程。
 
-**createTransactionIfNecessary: **
+** createTransactionIfNecessary: **
 
-
+d
 
 ### 扩展知识
 
