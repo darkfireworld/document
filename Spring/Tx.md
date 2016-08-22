@@ -311,11 +311,7 @@ public @interface Transactional {
 注意：在MySQL中默认采用`READ REPEATABLE`默认。
 
 
-### 源码分析
-
-接下来，我们来分析一下**Spring注解式事务**的实现过程。
-
-#### 接口和类
+### 事务接口和类
 
 这里，我们先介绍一些重要的类和接口。
 
@@ -366,16 +362,17 @@ public @interface Transactional {
 
 通过上述的注解，就可以通过注解的方式，完成Spring事务管理了。
 
-#### 初始化
+### 源码分析
 
-对于Spring事务初始化，大致分为两个步骤：
+接下来，我们来分析一下**Spring注解式事务**的实现过程，大致过程如下：
 
 1. 加载阶段：加载事务相关Bean（数据源，事务管理器，事务Aop处理器，JdbcTemplate）到容器中。
-2. 注入阶段：利用Spring Aop特性，注入事务相关代码。
+2. 注入阶段：利用Spring Aop特性，注入事务代码到**目标方法**（如：@Transactional标记方法）
+3. 执行阶段: 调用具有事务管理功能的目标方法。
 
 注意：在本文中，默认采用**注解式事务**处理。
 
-**加载阶段：**
+#### 加载阶段
 
 在上述的DEMO中，我们采用`@EnableTransactionManagement`的方式开启Spring事务特性：
 
@@ -493,7 +490,7 @@ public class ProxyTransactionManagementConfiguration extends AbstractTransaction
 可以发现，`BeanFactoryTransactionAttributeSourceAdvisor`相当于事务注入的管理器，将`TransactionAttributeSource`
 和`TransactionInterceptor`整合在一起。
 
-**注入阶段：**
+#### 注入阶段
 
 通过利用Spring Aop的特性，可以非常方便的对一个Bean注入事务代码，流程如下：
 
@@ -504,7 +501,7 @@ public class ProxyTransactionManagementConfiguration extends AbstractTransaction
 
 这样子，就完成了对**目标方法**事务管理。
 
-#### 执行事务
+#### 执行阶段
 
 在调用***目标方法**的时候，都会调用`TransactionInterceptor#invoke`方法进行拦截:
 
@@ -632,10 +629,256 @@ TransactionAspectSupport:
 
 这样子，就开启了**目标方法**的事务管理，接下来就可以调用具体的业务逻辑了。
 
+**completeTransactionAfterThrowing:**
+
+```java
+
+	/**
+	 * Handle a throwable, completing the transaction.
+	 * We may commit or roll back, depending on the configuration.
+	 *
+	 * 处理异常。
+	 * 回滚还是提交，依赖于具体配置。
+	 */
+	protected void completeTransactionAfterThrowing(TransactionInfo txInfo, Throwable ex) {
+		if (txInfo != null && txInfo.hasTransaction()) {
+			// 之前开启过事务
+			...
+			if (txInfo.transactionAttribute.rollbackOn(ex)) {
+				// 需要回滚
+				try {
+					// 回滚
+					txInfo.getTransactionManager().rollback(txInfo.getTransactionStatus());
+				}
+				....
+			}
+			else {
+				// We don't roll back on this exception.
+				// Will still roll back if TransactionStatus.isRollbackOnly() is true.
+				// 继续提交
+				try {
+					txInfo.getTransactionManager().commit(txInfo.getTransactionStatus());
+				}
+				....
+			}
+		}
+	}
+
+```
+
+当出现异常的时候，调用`completeTransactionAfterThrowing`来处理。**根据事务定义决定回滚还是提交当前事务。**
+
+
+**cleanupTransactionInfo:**
+
+```java
+	/**
+	 * Reset the TransactionInfo ThreadLocal.
+	 * <p>Call this in all cases: exception or normal return!
+	 * 
+	 * 还原之前保存的事务上下文。
+	 */
+	protected void cleanupTransactionInfo(TransactionInfo txInfo) {
+		if (txInfo != null) {
+			// 还原之前保存的事务上下文。
+			txInfo.restoreThreadLocalStatus();
+		}
+	}
+```
+
+当业务逻辑调用结束后（包括异常结束），会调用`cleanupTransactionInfo`方法，还原之前通
+过`prepareTransactionInfo`保存的事务上下文。
+
+**commitTransactionAfterReturning:**
+
+```java
+
+	/**
+	 * Execute after successful completion of call, but not after an exception was handled.
+	 * Do nothing if we didn't create a transaction.
+	 * @param txInfo information about the current transaction
+	 */
+	protected void commitTransactionAfterReturning(TransactionInfo txInfo) {
+		if (txInfo != null && txInfo.hasTransaction()) {
+			if (logger.isTraceEnabled()) {
+				logger.trace("Completing transaction for [" + txInfo.getJoinpointIdentification() + "]");
+			}
+			txInfo.getTransactionManager().commit(txInfo.getTransactionStatus());
+		}
+	}
+```
+
+最后，如果事务是正常的结束的，就会调用`commitTransactionAfterReturning`方法，尝试进行提交当前事务。
+
+到此，一个拥有事务管理功能的目标方法，被调用的处理流程基本结束了。
+
 ### 扩展知识
+
+#### AbstractPlatformTransactionManager
+
+在Spring容器中，基本上所有的事务管理器都继承于`AbstractPlatformTransactionManager`抽象类：
+
+1. DataSourceTransactionManager: JDBC 事务管理器。
+2. JmsTransactionManager: JMS 事务管理器。
+3. JtaTransactionManager: JTA 事务管理器。
+
+通过`AbstractPlatformTransactionManager`封装事务管理基础API：
+
+1. getTransaction: 根据事务定义，开启一个事务，并且返回该事务状态。
+2. commit: 根据事务状态，进行提交（可能为空提交）。
+3. rollback: 根据事务状态，进行回滚（可能为空回滚）。
+
+然后，通过`AbstractPlatformTransactionManager`的抽象方法：
+
+1. doGetTransaction: 返回当前事务对象。
+2. isExistingTransaction: 判断当前是否已经开启了事务。
+3. doBegin: 新的事务
+4. doSuspend: 挂起当前事务。
+5. doResume: 恢复指定事务。
+6. doCommit: 提交事务
+7. doRollback: 回滚事务
+8. doCleanupAfterCompletion: 事务结束，资源清理回调。
+
+通过继承`AbstractPlatformTransactionManager`抽象类，然后实现上述方法，就可以实现自定义事务管理器了。
+
+#### JTA
+
+在实际开发的过程中，我们会遇到多数据源(Jms,DataSource ...)的分布式事务问题，这时候，我们就需要借助JTA来快速实现。
+
+**依赖引入：**
+
+```xml
+	<dependency>
+		<groupId>com.atomikos</groupId>
+		<artifactId>transactions-jms</artifactId>
+		<version>3.9.3</version>
+	</dependency>
+
+	<dependency>
+		<groupId>javax.transaction</groupId>
+		<artifactId>jta</artifactId>
+		<version>1.1</version>
+	</dependency>
+```
+
+通过Maven引入依赖`atomikos`和`jta`.
+
+**配置：**
+
+```java
+	@Component
+    @EnableTransactionManagement
+    static class IoConf {
+		// 数据源1
+        @Bean
+        public DataSource dataSource1() {
+            AtomikosDataSourceBean dataSourceBean = new AtomikosDataSourceBean();
+            dataSourceBean.setUniqueResourceName("mysql1");
+            dataSourceBean.setXaDataSourceClassName(MysqlXADataSource.class.getName());
+            Properties properties = new Properties();
+            properties.put("user", "root");
+            properties.put("password", "root");
+            properties.put("url", "jdbc:mysql://localhost:3306/test?useUnicode=true&characterEncoding=UTF-8");
+            dataSourceBean.setXaProperties(properties);
+            dataSourceBean.setTestQuery("SELECT 'x'");
+            return dataSourceBean;
+        }
+		// 数据源2
+        @Bean
+        public DataSource dataSource2() {
+            AtomikosDataSourceBean dataSourceBean = new AtomikosDataSourceBean();
+            dataSourceBean.setUniqueResourceName("mysql2");
+            dataSourceBean.setXaDataSourceClassName(MysqlXADataSource.class.getName());
+            Properties properties = new Properties();
+            properties.put("user", "root");
+            properties.put("password", "root");
+            properties.put("url", "jdbc:mysql://localhost:3307/test?useUnicode=true&characterEncoding=UTF-8");
+            dataSourceBean.setXaProperties(properties);
+            dataSourceBean.setTestQuery("SELECT 'x'");
+            return dataSourceBean;
+        }
+
+        @Bean
+        public PlatformTransactionManager transactionManager() throws Exception {
+			// JTA用户事务管理器
+            UserTransactionManager transactionManager = new UserTransactionManager();
+            transactionManager.init();
+			// JTA 用户事务实现类
+            UserTransactionImp atomikosUserTransaction = new UserTransactionImp();
+            atomikosUserTransaction.setTransactionTimeout(30);
+            return new JtaTransactionManager(atomikosUserTransaction, transactionManager);
+        }
+		// 数据源1的JDBC模版
+        @Bean
+        public JdbcTemplate template1() {
+            return new JdbcTemplate(dataSource1());
+        }
+		// 数据源2的JDBC模版
+        @Bean
+        public JdbcTemplate template2() {
+            return new JdbcTemplate(dataSource2());
+        }
+    }
+
+```
+
+这样子就完成了对JTA事务的配置了。
+
+**业务逻辑：**
+
+```java
+@Component
+public class RIo {
+
+    @Autowired
+    @Qualifier("template1")
+    JdbcTemplate template1;
+
+    @Autowired
+    @Qualifier("template2")
+    JdbcTemplate template2;
+
+    @Transactional()
+    public void test() {
+        template1.update("UPDATE t_article SET content=? WHERE id=?", String.valueOf(System.currentTimeMillis()), "1");
+        template2.update("UPDATE t_address SET name=? WHERE id=?", String.valueOf(System.currentTimeMillis()), "2");
+    }
+}
+
+```
+
+可以发现，在同一个事务过程中，同时对两个数据源进行更新操作。
+
+注意：通过`atomikos`连接池获取的**XAResource**资源，会被atomikos代理，从而实现**自动**加入当前JTA事务
+的功能。详情可见:`AtomikosConnectionProxy#newInstance`。
+
+**测试用例：**
+
+```java
+
+	@Test
+	public void test() {
+		rIo.test();
+	}
+	
+```
+
+**运行截图：**
+
+![](258D.tmp.jpg)
+
+**小结：**
+
+虽然通过JTA可以快速的实现**分布式事务管理**，但是JTA在性能上存在缺陷。一般来说，我们可以采用:
+
+1. 弱XA（MyCat）
+2. TCC
+
+来避免性能上的问题。
 
 ## 参考
 
 * [MySQL 中隔离级别 RC 与 RR 的区别](http://www.cnblogs.com/digdeep/archive/2015/11/16/4968453.html)
 * [MySQL 加锁处理分析](http://hedengcheng.com/?p=771)
 * [JTA 深度历险 - 原理与实现](http://www.ibm.com/developerworks/cn/java/j-lo-jta/)
+* [XA事务处理](http://www.infoq.com/cn/articles/xa-transactions-handle)
