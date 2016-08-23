@@ -556,7 +556,7 @@ Spring 通过`SpringJUnit4ClassRunner`来支持JUnit。通过`SpringJUnit4ClassR
 1. ApplicationContext仅仅初始化一次。
 2. SpringMVC 支持
 3. @Autowired 支持
-4. @Rollback 支持
+4. @Rollback 支持(需要`@Transactional`配合)
 
 SpringJUnit4ClassRunner继承于BlockJUnit4ClassRunner类，通过`覆盖`父类方法，实现了上述特性：
 
