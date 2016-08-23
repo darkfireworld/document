@@ -1959,9 +1959,9 @@ PreparedStatementHandler:
 
 因为Jdbc查询的过程和原生的一致，这里就不进行查看了，重点关注 `handleResultSets`处理结果。
 
-一般来说，结果处理都使用默认的结果处理器`DefaultResultSetHandler`，通过它，可以完成返回结果集到Java对象的转换。
+默认的，MyBatis会使用`DefaultResultSetHandler`将`ResultSet`转换为`List<POJO>`类型。
 
-首先看看单行数据的对象的构建过程：
+首先看看**单行数据**的对象的构建过程：
 
 ```java
 
