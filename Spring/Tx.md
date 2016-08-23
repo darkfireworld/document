@@ -763,6 +763,12 @@ TransactionAspectSupport:
 
 通过Maven引入依赖`atomikos`和`jta`.
 
+**JTA：**
+
+![](23C7.tmp.jpg)
+
+上述就是`JTA`的jar包接口。
+
 **配置：**
 
 ```java
@@ -849,7 +855,7 @@ public class RIo {
 
 可以发现，在同一个事务过程中，同时对两个数据源进行更新操作。
 
-注意：通过`atomikos`连接池获取的**XAResource**资源，会被atomikos代理，从而实现**自动**加入当前JTA事务
+注意：通过`atomikos`连接池获取的**XAResource**资源，会被atomikos代理，从而实现了**自动**加入当前JTA事务
 的功能。详情可见:`AtomikosConnectionProxy#newInstance`。
 
 **测试用例：**
