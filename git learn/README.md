@@ -203,9 +203,9 @@ versionCode计算公式为：
 
 `git checkout <branch_name>`
 
-创建新分支
+创建新分支，并且切换到新分支上
 
-`git branch <new_branch_name> [<start_point>]`
+`git checkout -b <new_branch_name> [<start_point>]`
 
 注意：`<start_point>`为可选，默认为HEAD
 
@@ -293,13 +293,13 @@ versionCode计算公式为：
 
 ### 撤销
 
-回滚提交，但是保留修改的文件
+回滚提交，且清空暂存区，但是保留修改的文件
 
 `git reset HEAD^ | <commit_id>`
 
 注意：^表示前一次版本，如果是 ^^ 就是前两次。
 
-回滚提交，但是不保留修改的文件
+回滚提交，且清空暂存区，但是不保留修改的文件
 
 `git reset --hard HEAD^ | <commit_id>`
 
