@@ -269,6 +269,64 @@ public class HandlerExecutionChain {
 
 注意：如果`getHandler`返回`null`，则表示该映射器无法处理该request对象。
 
+### HandlerInterceptor
+
+```java
+
+/**
+ * 拦截器
+ */
+public interface HandlerInterceptor {
+
+	/**
+	 * Intercept the execution of a handler. Called after HandlerMapping determined
+	 * an appropriate handler object, but before HandlerAdapter invokes the handler.
+	 *
+	 * handler的拦截器。
+	 *
+	 * 当HandlerMapping筛选出合适的handler对象后，但是在HandlerAdapter调
+	 * 用这个handler之前，该拦截器方法将被调用。
+	 *
+	 * 注意：如果返回false，则表示拦截器已经完成对本次请求的处理。
+	 */
+	boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler)
+	    throws Exception;
+
+	/**
+	 * Intercept the execution of a handler. Called after HandlerAdapter actually
+	 * invoked the handler, but before the DispatcherServlet renders the view.
+	 * Can expose additional model objects to the view via the given ModelAndView.
+	 *
+	 * handler的拦截器。
+	 *
+	 * 当HandlerAdapter已经调用完handler，但是在DispatcherServlet渲染view之前，
+	 * 该拦截器方法将被调用。
+	 *
+	 * 注意：通过这个方法，可以向ModelAndView中添加额外的参数。
+	 */
+	void postHandle(HttpServletRequest request, HttpServletResponse response, Object handler, ModelAndView modelAndView)
+			throws Exception;
+
+	/**
+	 * Callback after completion of request processing, that is, after rendering
+	 * the view. Will be called on any outcome of handler execution, thus allows
+	 * for proper resource cleanup.
+	 *
+	 * 当请求被处理完成后（view渲染完毕，preHandle返回false，抛出异常），通过这个方法
+	 * 可以清理资源。
+	 *
+	 * 注意：相对于preHandle的调用顺序，该方法是逆序调用的。
+	 */
+	void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex)
+			throws Exception;
+
+}
+
+
+```
+
+通过`HandlerInterceptor`可以实现J2EE中的Filter的功能，从而拦截handler的执行。
+
 #### HandlerAdapter
 
 
@@ -349,10 +407,68 @@ public interface ViewResolver {
 
 **关于MIME**：Request的MIME来自于的URL后缀[`*.json` | `*.html`] 和 `Accept`头属性，而View的MIME来自于`View#getContentType`方法。
 
-* HandlerExceptionResolver: **Spring容器内**异常处理器
+#### View
 
+```java
 
-#### 异常处理
+/**
+ * 视图渲染类
+ */
+public interface View {
+
+	...
+
+	/**
+	 * Return the content type of the view, if predetermined.
+	 * <p>Can be used to check the content type upfront,
+	 * before the actual rendering process.
+	 * @return the content type String (optionally including a character set),
+	 * or {@code null} if not predetermined.
+	 *
+	 * 返回该View渲染出来的content的Content-Type属性（Response#Header）。
+	 */
+	String getContentType();
+
+	/**
+	 * Render the view given the specified model.
+	 *
+	 * 给定model然后渲染它
+	 */
+	void render(Map<String, ?> model, HttpServletRequest request, HttpServletResponse response) throws Exception;
+
+}
+
+```
+
+通过`View`的子类（FastJsonJsonView，FreeMarkerView，...）可以完成对`model`的渲染。
+
+#### HandlerExceptionResolver
+
+```java
+/**
+ * Interface to be implemented by objects that can resolve exceptions thrown during
+ * handler mapping or execution, in the typical case to error views. Implementors are
+ * typically registered as beans in the application context.
+ *
+ */
+public interface HandlerExceptionResolver {
+
+	/**
+	 * Try to resolve the given exception that got thrown during handler execution,
+	 * returning a {@link ModelAndView} that represents a specific error page if appropriate.
+	 *
+	 * 尝试解决在执行过程中抛出的异常，并且返回ModelAndView对象，用来渲染错误页面
+	 * 
+	 * 注意：如果返回null，则按照默认流程处理。
+	 */
+	ModelAndView resolveException(
+			HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex);
+
+}
+
+```
+
+通过`HandlerExceptionResolver`接口，可以处理在执行过程中发生的**异常**，比如说：未授权，系统错误。
 
 ### 处理流程
 
