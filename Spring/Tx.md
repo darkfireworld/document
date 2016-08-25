@@ -311,7 +311,7 @@ public @interface Transactional {
 注意：在MySQL中默认采用`READ REPEATABLE`默认。
 
 
-### 事务接口和类
+### 接口和类
 
 这里，我们先介绍一些重要的类和接口。
 
