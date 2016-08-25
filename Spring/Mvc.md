@@ -11,7 +11,6 @@
 首先，我们需要引入上述的JAR包，以及一些相关联的JAR，如：
 
 * log4j
-* mysql-connector-java
 * jetty
 
 这样子，就完成了Spring Jar的引入。
@@ -93,6 +92,81 @@
 容器在启动后，会加载和初始化`DispatcherServlet`这个Servlet类。而**Spring容器**的初始化就是通过`DispatcherServlet`实现的。
 
 注意：UTF-8字符过滤器会**智能**的处理`charset=utf-8`的设置。
+
+**Spring配置：**
+
+```java
+
+@Configuration
+@PropertySource("classpath:project.properties")
+@EnableAspectJAutoProxy(proxyTargetClass = true)
+@ComponentScan("org.darkgem")
+public class SpringConf {
+    static Logger logger = LoggerFactory.getLogger(SpringConf.class);
+
+
+    /**
+     * Spring MVC 配置
+     */
+    @Component
+    // 开启Spring Mvc
+    @EnableWebMvc
+    // Spring Mvc 配置器，当然，也可以不通过这个Adapter配置
+    static class SpringMvcConf extends WebMvcConfigurerAdapter {
+
+        // 配置默认ServletHandler
+        @Override
+        public void configureDefaultServletHandling(DefaultServletHandlerConfigurer configurer) {
+            configurer.enable();
+        }
+
+        // 配置视图渲染
+        @Override
+        public void configureViewResolvers(ViewResolverRegistry registry) {
+            registry.order(1);
+
+            FastJsonJsonView fastJsonJsonView = new FastJsonJsonView();
+            fastJsonJsonView.setExtractValueFromSingleKeyModel(true);
+
+            registry.enableContentNegotiation(fastJsonJsonView);
+
+        }
+    }
+}
+```
+
+在上述注解式配置中，通过`SpringMvcConf`配置了SpringMvc组件：
+
+1. 默认ServlerHandler处理
+2. JSON渲染器
+
+**Ctrl：**
+
+
+```java
+
+@Controller
+@RequestMapping("/todo/TodoCtrl")
+public class TodoCtrl {
+
+    @RequestMapping("/hello")
+    public Message hello() {
+        return Message.okMessage("Hello");
+    }
+}
+
+
+```
+
+上述，是一个简单的Ctrl控制器，用于返回Hello字符串。
+
+**测试：**
+
+我们通过Jetty启动容器，然后通过浏览器测试：
+
+![](6D95.tmp.jpg)
+
+可以发现，我们的Spring Mvc已经正常工作了。
 
 ### 基础组件
 
