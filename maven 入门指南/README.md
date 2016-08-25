@@ -231,7 +231,7 @@ Maven插件高度易扩展，可以方便的进行自定义配置。如：配置
 
 ### bind过程
 
-Maven的生命周期是抽象的，实际需要插件来完成任务。这一过程是通过将插件的目标（goal）绑定到生命周期的具体阶段（phase）来完成的。
+**Maven的生命周期是抽象的，实际需要插件来完成具体任务。**这一过程是通过将插件的目标（goal）绑定到生命周期的具体阶段（phase）来完成的。
 如：将`maven-compiler-plugin`插件的`compile目标`绑定到default生命周期的`compile阶段`，完成项目的源代码编译：
 
 ![maven-plugin-bind](A0FB.tmp.jpg)
@@ -240,6 +240,7 @@ Maven的生命周期是抽象的，实际需要插件来完成任务。这一过
 
 在maven中，已经存在了一些预定义的插件以及相应的生命周期绑定。详细可见`%M3_HOME%\maven-core\src\main\resources\META-INF\plexus\default-bindings.xml`。
 
+注意：**Maven的依赖管理并不依赖插件实现。**
 
 ## 依赖和坐标
 
