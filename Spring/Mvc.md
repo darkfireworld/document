@@ -246,8 +246,13 @@ public interface HandlerMapping {
 * RequestMappingHandlerMapping: 最新的HandlerMapping子类，支持@RequestMapping等注解。
 * SimpleUrlHandlerMapping: 简单的URL->Handler映射器。`<mvc:default-servlet-handler />`就是通过它实现mapping的。
 
+给定一个request对象，然后通过`HandlerMapping#getHandler`映射器，将获取到一个待执行`HandlerExecutionChain`对象，
+之后，handler对象将通过`HandlerAdapter`处理器进行适配，然后进行具体的执行流程。
 
-给定一个request对象，然后通过`HandlerMapping#getHandler`映射器，将获取到一个待执行`HandlerExecutionChain`对象：
+注意：如果`HandlerMapping#getHandler`返回`null`，则表示该映射器无法处理该request对象。
+
+#### HandlerExecutionChain
+
 
 ```java
 
@@ -265,11 +270,9 @@ public class HandlerExecutionChain {
 
 ```
 
-之后，handler对象将通过`HandlerAdapter`处理器进行适配，然后进行具体的执行流程。
+通过`HandlerExecutionChain`对象，包裹handler以及相应的拦截器。
 
-注意：如果`getHandler`返回`null`，则表示该映射器无法处理该request对象。
-
-### HandlerInterceptor
+#### HandlerInterceptor
 
 ```java
 
@@ -377,7 +380,7 @@ public interface HandlerAdapter {
 
 通过`HandlerAdapter#handle`方法，可以**修饰/处理**来自于`HandlerMapping#getHandler`获取的handler对象。
 
-注意：如果`handle`返回null，则表示该请求已经被处理完成。
+注意：如果`HandlerAdapter#handle`返回null，则表示该请求已经被处理完成。
 
 #### ViewResolver
 
