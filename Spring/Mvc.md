@@ -1034,6 +1034,66 @@ DispatcherServlet：
 
 ### 扩展知识
 
+#### url-pattern
+
+通过**url-pattern**可以配置Servlet/Filter的路径，大致分为如下几种格式：
+
+1. 精确路径：/a/b/c
+2. 最长路径：/a/*
+3. 扩展路径：*.do
+4. 默认路径：/
+
+当一个HTTP请求过来的时候，会按照上述的优先级进行匹配。
+
+注意：如果条目1-3都未能匹配URL，则会采用**条目4(默认路径)**进行匹配URL。
+
+#### DefaultServlet
+
+在Tomcat和Jetty中存在`DefaultServlet`:
+
+```
+
+This servlet, normally ** mapped to / **, provides the handling for **static content**, 
+OPTION and TRACE methods for the context.
+
+```
+
+简单的来说，通过`DefaultServlet`可以处理**静态资源**。
+
+#### error-page
+
+通过**error-page**标签，可以配置一些常见的错误页面，避免直接将错误信息暴露给用户：
+
+```xml
+
+
+    <!--error-page 配置-->
+    <error-page>
+        <exception-type>java.lang.Exception</exception-type>
+        <location>/exception.html</location>
+    </error-page>
+    <error-page>
+        <error-code>404</error-code>
+        <location>/404.html</location>
+    </error-page>
+    <error-page>
+        <error-code>500</error-code>
+        <location>/500.html</location>
+    </error-page>
+	
+```
+
+当容器接受到**异常，404，500**等错误的时候，容器处理流程如下：
+
+1. 检测`web.xml`是否存在相应的`error-page`条目。
+2. 如果存在，则使用`location`地址，对请求进行**forward**处理，从而会再次发起**路由过程**
+3. 如果不存在，则使用**默认错误**页面，写入到response中。
+
+注意：SpringMVC的`HandlerExceptionResolver`并不能处理**render时期的异常**。
+
+#### flush
+
+当调用`ServletOutputStream#flush`方法的时候，会在此时写入**HTTP header**信息。之后，再通过设置header属性将失效。
 
 ## 参考
 
