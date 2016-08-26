@@ -1093,7 +1093,10 @@ OPTION and TRACE methods for the context.
 
 #### flush
 
-当调用`ServletOutputStream#flush`方法的时候，会在此时写入**HTTP header**信息。之后，再通过设置header属性将失效。
+当**第一次**调用`ServletResponse#getOutputStream#flush`或者`ServletResponse#getWriter#flush`的时候，
+**会优先向客户端传输 RESPONSE HEADERS**，并且标记RESPONSE为**COMMITTED状态**。
+
+当调用`flush`方法之后，对**RESPONSE HEADERS**修改操作将无效。
 
 ## 参考
 
