@@ -1296,11 +1296,14 @@ public void parseStatementNode() {
 
 ![](51A.tmp.jpg)
 
-注意：<include>#<property> 会定义构造时候的上下文变量，用来替换指向<sql>语句中的${key}。可以查看`XMLIncludeTransformer`的源码。
-
 上述的SQL语句，在构造SqlSource的时候，因为无法解析 ${property} 的数值，需要在参数中确定，所以构造了`DynamicSqlSource`对象。
 
 无论是`RawSqlSource`还是`DynamicSqlSource`还是其他的`SqlSource`，最后都保存在`Configuration#mappedStatements`中。
+
+**注意：**
+
+1. `${}` 表示动态SQL占用符，而`#{}`表示一个参数占用符。
+2. `<include>#<property>` 会定义构造时候的上下文变量，用来替换指向`<sql>`语句中的`${key}`。可以查看`XMLIncludeTransformer`的源码。
 
 **MappedStatement:**
 
@@ -1700,11 +1703,11 @@ MappedStatement:
 2. 将SqlNode树Apply到上下文
 3. 通过解析出来的SqlSource获取BoundSql（嵌套动态SQL语句？）
 
-如图，就是一个简单的 BoundSql 对象：
+这样子，我们就获取了一个 `BoundSql`对象：
 
 ![](3B91.tmp.jpg)
 
-**注意：${} 表示动态SQL占用符，而#{}表示一个参数占用符。**
+如图，就是一个简单的 BoundSql 对象（包含：**预编译SQL**，**占位符描述**等）。
 
 #### query
 
