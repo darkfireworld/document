@@ -739,6 +739,8 @@ TransactionAspectSupport:
 
 就可以实现一个具体的事务管理器（DataSource，Jms，Jta...）了。
 
+注意：**`PlatformTransactionManager`定义了事物管理器的规范(BEGIN,COMMIT,ROLLBACK,SUSPEND,RESUME...)**。
+
 ### JTA
 
 在实际开发的过程中，我们会遇到多数据源(Jms,DataSource ...)的分布式事务问题，这时候，我们就需要借助JTA来快速实现。
