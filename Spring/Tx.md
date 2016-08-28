@@ -720,13 +720,13 @@ TransactionAspectSupport:
 2. JmsTransactionManager: JMS 事务管理器。
 3. JtaTransactionManager: JTA 事务管理器。
 
-通过`AbstractPlatformTransactionManager`封装事务管理基础API：
+通过`AbstractPlatformTransactionManager`封装了`PlatformTransactionManager`的基础逻辑：
 
 1. getTransaction: 根据事务定义，开启一个事务，并且返回该事务状态。
 2. commit: 根据事务状态，进行提交（可能为空提交）。
 3. rollback: 根据事务状态，进行回滚（可能为空回滚）。
 
-然后，通过`AbstractPlatformTransactionManager`的抽象方法：
+通过继承实现`AbstractPlatformTransactionManager`的抽象方法：
 
 1. doGetTransaction: 返回当前事务对象。
 2. isExistingTransaction: 判断当前是否已经开启了事务。
@@ -737,7 +737,7 @@ TransactionAspectSupport:
 7. doRollback: 回滚事务
 8. doCleanupAfterCompletion: 事务结束，资源清理回调。
 
-通过继承`AbstractPlatformTransactionManager`抽象类，然后实现上述方法，就可以实现自定义事务管理器了。
+就可以实现一个具体的事务管理器（DataSource，Jms，Jta...）了。
 
 ### JTA
 
