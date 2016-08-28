@@ -1263,9 +1263,12 @@ AbstractAutowireCapableBeanFactory:
 		// Instantiate the bean.
         // 实例化bean对象，该BeanWrapper对象包括了：对象实例，配置属性，Class等信息。
 		BeanWrapper instanceWrapper = null;
-		...
+		// singleton 处理
+		if (mbd.isSingleton()) {
+			instanceWrapper = this.factoryBeanInstanceCache.remove(beanName);
+		}
 		if (instanceWrapper == null) {
-			// 创建一个新的bean实例
+			// 创建实例对象
 			instanceWrapper = createBeanInstance(beanName, mbd, args);
 		}
 		
