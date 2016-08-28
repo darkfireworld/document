@@ -1372,7 +1372,7 @@ AbstractAutowireCapableBeanFactory:
 2. autowireConstructor: 通过构造方法进行实例化
 3. instantiateBean: 通过无参数构造函数进行实例化
 
-注意：如果Bean通过`@Bean`进行定义，则会采用**工厂方法**进行实例化。此时，@Bean方法所在的对象(@Configuration标记)会通过`getBean`获取（实例化）。
+注意：如果Bean通过`@Bean`进行定义，则会采用**工厂方法**进行实例化。
 
 **populateBean:**
 
