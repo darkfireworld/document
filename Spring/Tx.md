@@ -875,8 +875,8 @@ public class RIo {
 
 虽然通过JTA可以快速的实现**分布式事务管理**，但是JTA在性能上存在缺陷。一般来说，我们可以采用:
 
-1. 弱XA（MyCat）
-2. TCC
+1. 弱XA ( MyCat, ChainedTransactionManager )
+2. TCC ( Try-Confirm-Cancel )
 
 来避免性能上的问题。
 
