@@ -501,7 +501,7 @@ public class ProxyTransactionManagementConfiguration extends AbstractTransaction
 
 ### 执行阶段
 
-在调用***目标方法**的时候，都会调用`TransactionInterceptor#invoke`方法进行拦截:
+在调用**目标方法**的时候，都会调用`TransactionInterceptor#invoke`方法进行拦截:
 
 ```java
 
