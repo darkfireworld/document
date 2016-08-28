@@ -853,7 +853,7 @@ PostProcessorRegistrationDelegate:
 1. Invoke都会通过`PriorityOrdered`，`Ordered` ，`Non-Ordered`方式进行排序，避免工厂后处理器依赖的问题。
 2. **只能**通过`BeanDefinitionRegistryPostProcessor`这个工厂后处理器添加新的`BeanDefinition`到容器中。
 3. 在此阶段，Spring仅仅会搜集`BeanDefinition`到容器中，最大程度避免Bean在`finishBeanFactoryInitialization`之前初始化(包括`@Configuration`配置类)。
-4. 被`@Bean`标记所在的类(SpringConfs)，会被**动态代理**，避免@Bean方法相互调用的时候生成新的**Singleton** Bean。
+4. Spring将使用**CGLIB静态代理**被`@Bean`注解所在的类(如：SpringConf)，避免@Bean方法相互调用的时候生成新的**Singleton Bean**。
 
 **registerBeanPostProcessors:**
 
