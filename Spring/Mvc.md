@@ -1051,12 +1051,9 @@ DispatcherServlet：
 
 在Tomcat和Jetty中存在`DefaultServlet`:
 
-```
+> This servlet, normally ** mapped to / **, provides the handling for **static content**, 
+> OPTION and TRACE methods for the context.
 
-This servlet, normally ** mapped to / **, provides the handling for **static content**, 
-OPTION and TRACE methods for the context.
-
-```
 
 简单的来说，通过`DefaultServlet`可以处理**静态资源**。
 
