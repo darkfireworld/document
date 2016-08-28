@@ -1,10 +1,8 @@
-﻿# Spring
-
-## Ioc
+﻿# Spring Ioc
 
 Spring的Ioc功能是核心功能，其他的组件（Aop，Tx，Mvc）都依赖Ioc，从而实现。
 
-### 后处理器
+## 后处理器
 
 在容器中，所有的Bean都是通过**后处理器**进行管理的。而在Spring容器中，`后处理器`大致有两种类型和衍生类：
 
@@ -13,7 +11,7 @@ Spring的Ioc功能是核心功能，其他的组件（Aop，Tx，Mvc）都依赖
 
 通过这两种类型的`后处理器`，就可以比较全面的控制Ioc容器。下面来详细讲解这些`后处理器`。
 
-#### BeanFactoryPostProcessor
+### BeanFactoryPostProcessor
 
 通过`BeanFactoryPostProcessor`，我们可以管理已加载到BeanFactory中的BeanDefinition集合：
 
@@ -52,7 +50,7 @@ public interface BeanFactoryPostProcessor {
 
 可以发现，大部分实现类都是针对**属性**进行修改。下面，来看一下`BeanDefinitionRegistryPostProcessor`这个管理`BeanDefinition`后处理器。
 
-##### BeanDefinitionRegistryPostProcessor
+#### BeanDefinitionRegistryPostProcessor
 
 通过`BeanDefinitionRegistryPostProcessor`这个后处理器，我们可以新增`BeanDefinition`到beanFactory中：
 
@@ -99,7 +97,7 @@ public interface BeanDefinitionRegistryPostProcessor extends BeanFactoryPostProc
 
 1. **ConfigurationClassPostProcessor**: 实现了**基于注解配置@Configuration**的功能
 
-#### BeanPostProcessor
+### BeanPostProcessor
 
 在bean的生命周期中，**BeanPostProcessor**扮演着非常重要的角色：
 
@@ -167,7 +165,7 @@ public interface BeanPostProcessor {
 
 现在，我们再来看看`BeanPostProcessor`的子接口，通过子接口，可以拥有更大的权限，来操作bean的生命周期。
 
-##### MergedBeanDefinitionPostProcessor
+#### MergedBeanDefinitionPostProcessor
 
 在Bean的初始化过程中，通过**MergedBeanDefinitionPostProcessor**对Bean的
 
@@ -207,7 +205,7 @@ public interface MergedBeanDefinitionPostProcessor extends BeanPostProcessor {
 
 注意：注解配置信息保存在**后处理器的缓存**中，而非RootBeanDefinition中。
 
-##### InstantiationAwareBeanPostProcessor
+#### InstantiationAwareBeanPostProcessor
 
 在后处理器中，通过**InstantiationAwareBeanPostProcessor**扩展了**Bean实例化-属性设置**的生命周期管理。
 
@@ -270,7 +268,7 @@ public interface InstantiationAwareBeanPostProcessor extends BeanPostProcessor {
 
 1. **AutowiredAnnotationBeanPostProcessor**: `@Autowired`注解实现类。
 
-##### DestructionAwareBeanPostProcessor
+#### DestructionAwareBeanPostProcessor
 
 通过**DestructionAwareBeanPostProcessor**可以管理bean的destroy过程。比如：容器关闭的时候，注销所有的singleton对象。
 
@@ -311,7 +309,7 @@ public interface DestructionAwareBeanPostProcessor extends BeanPostProcessor {
 
 1. **InitDestroyAnnotationBeanPostProcessor**：`@PreDestroy`注解实现类。
 
-#### 关于Ordered
+### 关于Ordered
 
 Spring在初始化和使用**BeanFactoryPostProcessor和BeanPostProcessor**的时候，会遇到**依赖**问题，比如说：
 
@@ -322,7 +320,7 @@ Spring在初始化和使用**BeanFactoryPostProcessor和BeanPostProcessor**的�
 
 通过`Ordered`接口定义优先级，就可以解决上述的问题了。
 
-### 容器生命周期
+## 容器生命周期
 
 一个容器的初始化到销毁，大致会经历如下的阶段：
 
@@ -354,7 +352,7 @@ Spring在初始化和使用**BeanFactoryPostProcessor和BeanPostProcessor**的�
 
 这样子，就完成了容器的销毁。
 
-### Bean生命周期
+## Bean生命周期
 
 一个bean的生命周期大致如下：
 
@@ -383,13 +381,13 @@ Spring在初始化和使用**BeanFactoryPostProcessor和BeanPostProcessor**的�
 
 可以发现，spring中许多特性，如：@Autowired，@PostConstruct，@PreDestroy，Aop等，都是通过**后处理器**完成的。
 
-#### 关于Annotations
+### 关于Annotations
 
 ![](E790.tmp.jpg)
 
 通过上述的`Annotations`可以实现比较基础的Bean配置。更加高级的可以参考`@Configuration`，`@Bean`以及`@Import`注解。
 
-#### 关于FactoryBean
+### 关于FactoryBean
 
 在Spring中，Bean的构造也可以通过**FactoryBean**来构造，通过`FactoryBean`可以更加自由的控制bean的生成：
 
@@ -434,7 +432,7 @@ FactoryBean具有如下特性：
 
 通过`FactoryBean`可以实现一些复杂Bean的生成。
 
-#### 关于Aware
+### 关于Aware
 
 在Bean的生命周期过程中，我们会通过**Aware**来获取容器**内置变量**：
 
@@ -447,7 +445,7 @@ FactoryBean具有如下特性：
 
 通过这些`Aware`接口，可以非常轻松的将容器的变量注入到bean中。详情见：`CommonAnnotationBeanPostProcessor`。
 
-### 源码剖析
+## 源码剖析
 
 现在，我们以`AnnotationConfigApplicationContext`为例子，来分析一下Spring容器初始化和销毁的过曾过程：
 
@@ -462,7 +460,7 @@ FactoryBean具有如下特性：
 	
 ```
 
-#### 容器初始化
+### 容器初始化
 
 **AnnotationConfigApplicationContext构造过程：**
 
@@ -1022,7 +1020,7 @@ DefaultListableBeanFactory:
 
 通过`finishBeanFactoryInitialization`方法，容器完成了对**剩余的non-lazt-init singleton**类型bean初始化工作。
 
-#### getBean
+### getBean
 
 在Spring容器中，所有的bean都是通过**getBean->doGetBean**来获取的。下面来看看`doGetBean`这个核心函数。
 
@@ -1567,7 +1565,7 @@ AbstractBeanFactory:
 
 到此为止， `doGetBean` 的实现过程就大致分析完成了。
 
-#### 容器销毁
+### 容器销毁
 
 现在，我们来简单的介绍一下**容器销毁**的过程。容器销毁的触发条件有两个：
 
@@ -1747,7 +1745,7 @@ DisposableBeanAdapter:
 
 到此，Spring容器的销毁过程就大致介绍完毕了。
 
-### 小结
+## 小结
 
 Spring最核心的功能就是**Ioc**功能。而Ioc可以通过**后处理器**来进行自定义额外的功能，比如说：@Autowired，@PostConstruct，Spring Aop等。
 

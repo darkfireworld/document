@@ -1,8 +1,6 @@
-﻿# Spring
+﻿# Spring Mvc
 
-## Mvc
-
-### 例子
+## 例子
 
 **依赖：**
 
@@ -168,9 +166,9 @@ public class TodoCtrl {
 
 可以发现，我们的Spring Mvc已经正常工作了。
 
-### 接口和类
+## 接口和类
 
-#### DispatcherServlet
+### DispatcherServlet
 
 `DispatcherServlet`是核心HTTP请求的调度器。
 
@@ -204,7 +202,7 @@ public class TodoCtrl {
 
 并且通过它的父类`FrameworkServlet`完成了对**Spring容器**的整合工作。
 
-#### HandlerMapping
+### HandlerMapping
 
 通过`HandlerMapping`的子类，我们可以通过request获取一个handler对象：
 
@@ -251,7 +249,7 @@ public interface HandlerMapping {
 
 注意：如果`HandlerMapping#getHandler`返回`null`，则表示该映射器无法处理该request对象。
 
-#### HandlerExecutionChain
+### HandlerExecutionChain
 
 
 ```java
@@ -272,7 +270,7 @@ public class HandlerExecutionChain {
 
 通过`HandlerExecutionChain`对象，包裹handler以及相应的拦截器。
 
-#### HandlerInterceptor
+### HandlerInterceptor
 
 ```java
 
@@ -332,7 +330,7 @@ public interface HandlerInterceptor {
 
 注意：SpringMVC的**CORS（跨域）**就是通过拦截器实现的。详细可见：`CorsInterceptor`。
 
-#### HandlerAdapter
+### HandlerAdapter
 
 
 ```java
@@ -384,7 +382,7 @@ public interface HandlerAdapter {
 
 注意：如果`HandlerAdapter#handle`返回null，则表示该请求已经被处理完成。
 
-#### ViewResolver
+### ViewResolver
 
 ```java
 
@@ -412,7 +410,7 @@ public interface ViewResolver {
 
 **关于MIME**：Request的MIME来自于的URL后缀[`*.json` | `*.html`] 和 `Accept`头属性，而View的MIME来自于`View#getContentType`方法。
 
-#### View
+### View
 
 ```java
 
@@ -447,7 +445,7 @@ public interface View {
 
 通过`View`的子类（FastJsonJsonView，FreeMarkerView，...）可以完成对`model`的渲染。
 
-#### HandlerExceptionResolver
+### HandlerExceptionResolver
 
 ```java
 /**
@@ -475,7 +473,7 @@ public interface HandlerExceptionResolver {
 
 通过`HandlerExceptionResolver`接口，可以处理在执行过程中发生的**异常**，比如说：未授权，系统错误。
 
-### 注解配置
+## 注解配置
 
 在最新的SpringMVC中，可以使用`@EnableWebMvc`注解开启SpringMVC特性：
 
@@ -523,7 +521,7 @@ public class DelegatingWebMvcConfiguration extends WebMvcConfigurationSupport {
 
 这样子，通过SpringIoc的**注解式配置**特性，就可以将SpringMVC相关的Bean导入到容器中来了。
 
-### 初始化
+## 初始化
 
 首先，我们来看看`DispatcherServlet`的继承图为：
 
@@ -720,7 +718,7 @@ DispatcherServlet：
 
 通过**onRefresh**方法，我们就完成了SpringMVC中核心调度器`DispatcherServlet`的初始化。
 
-### 处理流程
+## 处理流程
 
 ![](9BB6.tmp.jpg)
 
@@ -814,7 +812,7 @@ DispatcherServlet：
 
 到此一个HTTP请求就被处理完成了。
 
-#### getHandler
+### getHandler
 
 ```java
 
@@ -850,7 +848,7 @@ DispatcherServlet：
 
 注意：提供**<mvc:default-servlet-handler/>**支持的`HandlerMapping`排序在最后。
 
-#### getHandlerAdapter
+### getHandlerAdapter
 
 ```java
 
@@ -880,7 +878,7 @@ DispatcherServlet：
 
 通过调用`HandlerAdapter#supports`判断是否支持handler对象。
 
-#### processDispatchResult
+### processDispatchResult
 
 ```java
 
@@ -944,7 +942,7 @@ DispatcherServlet：
 
 注意：**当异常类型为`ModelAndViewDefiningException`的时候，会直接获取mv数值，不会使用`HandlerExceptionResolver`处理它。**
 
-#### processHandlerException
+### processHandlerException
 
 ```java
 
@@ -977,7 +975,7 @@ DispatcherServlet：
 通过`processHandlerException`方法，遍历了已注册的**异常处理链**。如果其中的`handlerExceptionResolver`解决了该异
 常，则返回一个`ModelAndView exMv`。
 
-#### render
+### render
 
 ```java
 
@@ -1034,9 +1032,9 @@ DispatcherServlet：
 注意：通过`ViewResolver#resolveViewName`方法获取View的过程，**并非一定依赖viewName**。如：`ContentNegotiatingViewResolver`。
 
 
-### 扩展知识
+## 扩展知识
 
-#### url-pattern
+### url-pattern
 
 通过**url-pattern**可以配置Servlet/Filter的路径，大致分为如下几种格式：
 
@@ -1049,7 +1047,7 @@ DispatcherServlet：
 
 注意：如果条目1-3都未能匹配URL，则会采用**条目4(默认路径)**进行匹配URL。
 
-#### DefaultServlet
+### DefaultServlet
 
 在Tomcat和Jetty中存在`DefaultServlet`:
 
@@ -1062,7 +1060,7 @@ OPTION and TRACE methods for the context.
 
 简单的来说，通过`DefaultServlet`可以处理**静态资源**。
 
-#### error-page
+### error-page
 
 通过**error-page**标签，可以配置一些常见的错误页面，避免直接将错误信息暴露给用户：
 
@@ -1093,7 +1091,7 @@ OPTION and TRACE methods for the context.
 
 注意：SpringMVC的`HandlerExceptionResolver`并不能处理**render时期的异常**。
 
-#### flush
+### flush
 
 当**第一次**调用`ServletResponse#getOutputStream#flush`或者`ServletResponse#getWriter#flush`的时候，
 **会优先向客户端传输 RESPONSE HEADERS**，并且标记RESPONSE为**COMMITTED状态**。

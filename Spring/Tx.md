@@ -1,10 +1,8 @@
-﻿# Spring
-
-## Tx
+﻿# Spring Tx
 
 通过 Spring 事务，我们可以非常方便地对应用进行事务管理。
 
-### 例子
+## 例子
 
 现在，我们来介绍一下Spring事务的简单使用。
 
@@ -157,7 +155,7 @@ AFTER：7d6dc0b2
 可以发现，通过**@Transactional**标记的方法，具有了事务特性了。
 
 
-### @Transactional
+## @Transactional
 
 ```java
 
@@ -236,7 +234,7 @@ public @interface Transactional {
 3. 定义**事务隔离级别**。默认为：数据库默认事务隔离级别，MySQL为RR级别。
 4. 定义执行超时时间。默认为：无限时。
 
-#### 事务管理器
+### 事务管理器
 
 在一个应用中，可以存在多种类型的**事务管理器**：
 
@@ -252,7 +250,7 @@ public @interface Transactional {
 
 所以，当存在**多个**事务管理器的时候，那么使用`@Transactional`注解需要指定事务管理器。
 
-#### 事务传播
+### 事务传播
 
 `事务传播`这个概念是基于应用层的，而**非数据库级别**。在Spring中，大致存在如下类型：
 
@@ -265,7 +263,7 @@ public @interface Transactional {
 
 合理的定义`事务传播`特性，能优化应用的整体性能。
 
-#### 隔离级别
+### 隔离级别
 
 `隔离级别`是数据库中的概念，它是为了解决如下问题所提出的：
 
@@ -311,7 +309,7 @@ public @interface Transactional {
 注意：在MySQL中默认采用`READ REPEATABLE`默认。
 
 
-### 接口和类
+## 接口和类
 
 这里，我们先介绍一些重要的类和接口。
 
@@ -362,7 +360,7 @@ public @interface Transactional {
 
 通过上述的注解，就可以通过注解的方式，完成Spring事务管理了。
 
-### 源码分析
+## 源码分析
 
 接下来，我们来分析一下**Spring注解式事务**的实现过程，大致过程如下：
 
@@ -372,7 +370,7 @@ public @interface Transactional {
 
 注意：在本文中，默认采用**注解式事务**处理。
 
-#### 加载阶段
+### 加载阶段
 
 在上述的DEMO中，我们采用`@EnableTransactionManagement`的方式开启Spring事务特性：
 
@@ -490,7 +488,7 @@ public class ProxyTransactionManagementConfiguration extends AbstractTransaction
 可以发现，`BeanFactoryTransactionAttributeSourceAdvisor`相当于事务注入的管理器，将`TransactionAttributeSource`
 和`TransactionInterceptor`整合在一起。
 
-#### 注入阶段
+### 注入阶段
 
 通过利用Spring Aop的特性，可以非常方便的对一个Bean注入事务代码，流程如下：
 
@@ -501,7 +499,7 @@ public class ProxyTransactionManagementConfiguration extends AbstractTransaction
 
 这样子，就完成了对**目标方法**事务管理。
 
-#### 执行阶段
+### 执行阶段
 
 在调用***目标方法**的时候，都会调用`TransactionInterceptor#invoke`方法进行拦截:
 
@@ -712,9 +710,9 @@ TransactionAspectSupport:
 
 到此，一个拥有事务管理功能的目标方法，被调用的处理流程基本结束了。
 
-### 扩展知识
+## 扩展知识
 
-#### AbstractPlatformTransactionManager
+### AbstractPlatformTransactionManager
 
 在Spring容器中，基本上所有的事务管理器都继承于`AbstractPlatformTransactionManager`抽象类：
 
@@ -741,7 +739,7 @@ TransactionAspectSupport:
 
 通过继承`AbstractPlatformTransactionManager`抽象类，然后实现上述方法，就可以实现自定义事务管理器了。
 
-#### JTA
+### JTA
 
 在实际开发的过程中，我们会遇到多数据源(Jms,DataSource ...)的分布式事务问题，这时候，我们就需要借助JTA来快速实现。
 
