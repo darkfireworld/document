@@ -1264,6 +1264,11 @@ AbstractAutowireCapableBeanFactory:
         // 实例化bean对象，该BeanWrapper对象包括了：对象实例，配置属性，Class等信息。
 		BeanWrapper instanceWrapper = null;
 		...
+		if (instanceWrapper == null) {
+			// 创建一个新的bean实例
+			instanceWrapper = createBeanInstance(beanName, mbd, args);
+		}
+		
 		final Object bean = (instanceWrapper != null ? instanceWrapper.getWrappedInstance() : null);
 		Class<?> beanType = (instanceWrapper != null ? instanceWrapper.getWrappedClass() : null);
 
