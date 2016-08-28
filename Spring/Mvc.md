@@ -377,7 +377,7 @@ public interface HandlerAdapter {
 
 `HandlerAdapter`的重要子类：
 
-* RequestMappingHandlerAdapter: 最新的`HandlerAdapter`子类，支持`参数解析器`，`返回对象处理器`等特性。
+* RequestMappingHandlerAdapter: 最新的`HandlerAdapter`子类，支持**参数解析器**，**返回对象处理器**等特性。
 * HttpRequestHandlerAdapter: handler类型为`HttpRequestHandler`（如：`DefaultServletHttpRequestHandler`）的适配器。
 
 通过`HandlerAdapter#handle`方法，可以**修饰/处理**来自于`HandlerMapping#getHandler`获取的handler对象。
@@ -939,8 +939,10 @@ DispatcherServlet：
 通过`processDispatchResult`方法，可以将之前调用的结果(Exception ex，ModelAndView mv)进行处理：
 
 1. 如果存在`Exception ex`则调用`processHandlerException`进行处理异常。
-2. 如果存在`ModelAndView mv`则调用render进行渲染视图。
+2. 如果存在`ModelAndView mv`则调用`render`进行渲染视图。
 3. 最后调用拦截器的`afterCompletion`方法。
+
+注意：**当异常类型为`ModelAndViewDefiningException`的时候，会直接获取mv数值，不会使用`HandlerExceptionResolver`处理它。**
 
 #### processHandlerException
 
