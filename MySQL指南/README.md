@@ -624,13 +624,13 @@ InnoDB支持MVCC,在MVCC并发控制中，读操作可以分成两类：**快照
 		<td>DATETIME</td>
 		<td>8</td>
 		<td>YYYY-MM-DD HH:MM:SS</td>
-		<td>日期+时间。精确到<strong>秒</strong>。按照字面值存储，<strong>不跟随</strong>时区变化而变化</td>
+		<td>日期+时间。精确到<strong>秒</strong>。按照字面值存储，数值<strong>不跟随</strong>时区变化而变化</td>
 	</tr>
 	<tr>
 		<td>TIMESTAMP</td>
 		<td>4</td>
 		<td>YYYY-MM-DD HH:MM:SS</td>
-		<td>日期+时间。精确到<strong>秒</strong>。按照UNIX时间戳存储，<strong>跟随</strong>时区变化而变化</td>
+		<td>日期+时间。精确到<strong>秒</strong>。按照UNIX时间戳存储，数值<strong>跟随</strong>时区变化而变化</td>
 	</tr>
 </table>
 
@@ -643,7 +643,7 @@ InnoDB支持MVCC,在MVCC并发控制中，读操作可以分成两类：**快照
 
 **TIMESTAMP特性:**
 
-1. 使用UNIX_TIMESTAMP存储。所以，会跟随当前时区变化而变化。
+1. 使用UNIX_TIMESTAMP存储。数值会跟随当前时区变化而变化。
 2. 自动记录插入/更新数据行的时间。定义格式：`TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP`。
 3. 精确到秒。
 
@@ -651,7 +651,7 @@ InnoDB支持MVCC,在MVCC并发控制中，读操作可以分成两类：**快照
 
 在一般情况下，`DATETIME`和`TIMESTAMP`没有什么区别，直接使用就可以了。
 但是，如果考虑**时区问题**的话，则这两种数据类型都不是非常的合适。
-`DATETIME`天生不支持时区，`TIMESTAMP`虽然支持时区，但是，在使用`TIMESTAMP`之前，需要设置**当前会话的时区**，比较麻烦。
+`DATETIME`天生不支持时区，`TIMESTAMP`虽然支持时区，但是，在使用`TIMESTAMP`之前，需要设置当前**会话时区**，比较麻烦。
 所以，**这里推荐采用BIGINT记录当前UTC时间戳(毫秒)，高效，无歧义。**
 
 ## 参考
