@@ -501,6 +501,159 @@ InnoDB支持MVCC,在MVCC并发控制中，读操作可以分成两类：**快照
 
 **注意：为了避免乱码，JDBC URL 通常为 jdbc:mysql://localhost:3306/test?useUnicode=true&amp;characterEncoding=UTF-8**
 
+## MySQL数据类型
+
+### 数值类型
+
+<table>
+	<tr>
+		<th>类型</th>
+		<th>字节</th>
+		<th>说明</th>
+	</tr>
+	<tr>
+		<td>[UNSIGNED] TINYINT</td>
+		<td>1</td>
+		<td>小整数</td>
+	</tr>
+	<tr>
+		<td>[UNSIGNED] INT</td>
+		<td>4</td>
+		<td>整数</td>
+	</tr>
+	<tr>
+		<td>[UNSIGNED] BIGINT</td>
+		<td>8</td>
+		<td>大整数</td>
+	</tr>
+	<tr>
+		<td>[UNSIGNED] DOUBLE</td>
+		<td>8</td>
+		<td>双精度浮点数</td>
+	</tr>
+	<tr>
+		<td>[UNSIGNED] DECIMAL(M,D)</td>
+		<td>MAX(M,D)+2</td>
+		<td>固定浮点数</td>
+	</tr>
+</table>
+
+注意：所有数值类型都存在**UNSIGNED TYPE**格式类型。
+
+### 字符串类型
+
+<table>
+	<tr>
+		<th>类型</th>
+		<th>字节</th>
+		<th>说明</th>
+	</tr>
+	<tr>
+		<td>VARCHAR</td>
+		<td>0-6,5536</td>
+		<td>变长字符串</td>
+	</tr>
+	<tr>
+		<td>TEXT</td>
+		<td>0-6,5535</td>
+		<td>文本数据</td>
+	</tr>
+	<tr>
+		<td>BLOB</td>
+		<td>0-6,5535</td>
+		<td>二进制数据</td>
+	</tr>
+	<tr>
+		<td>LONGTEXT</td>
+		<td>0-4,294,967,295</td>
+		<td>大文本数据</td>
+	</tr>
+	<tr>
+		<td>LOGNGBLOB</td>
+		<td>0-4,294,967,295</td>
+		<td>大二进制数据</td>
+	</tr>
+</table>
+
+注意：**BLOB, TEXT, LONGBLOB, LONGTEXT 不能设置默认值(可为NULL)**。
+
+### 复合类型
+
+<table>
+	<tr>
+		<th>类型</th>
+		<th>实例</th>
+		<th>说明</th>
+	</tr>
+	<tr>
+		<td>ENUM</td>
+		<td>ENUM('TRUE','FALSE')</td>
+		<td>枚举，如：TRUE</td>
+	</tr>
+	<tr>
+		<td>SET</td>
+		<td>SET('A','B','C','D')</td>
+		<td>集合，如：A,B,C</td>
+	</tr>
+</table>
+
+注意：**通过ENUM和SET可以定义标准选项。**
+
+### 日期
+
+<table>
+	<tr>
+		<th>类型</th>
+		<th>字节</th>
+		<th>格式</th>
+		<th>说明</th>
+	</tr>
+	<tr>
+		<td>DATE</td>
+		<td>3</td>
+		<td>YYYY-MM-DD</td>
+		<td>日期值</td>
+	</tr>
+	<tr>
+		<td>TIME</td>
+		<td>3</td>
+		<td>HH:MM:SS</td>
+		<td>时间值</td>
+	</tr>
+	<tr>
+		<td>DATETIME</td>
+		<td>8</td>
+		<td>YYYY-MM-DD HH:MM:SS</td>
+		<td>日期+时间。精确到<strong>秒</strong>。按照字面值存储，<strong>不跟随</strong>时区变化而变化</td>
+	</tr>
+	<tr>
+		<td>TIMESTAMP</td>
+		<td>4</td>
+		<td>YYYY-MM-DD HH:MM:SS</td>
+		<td>日期+时间。精确到<strong>秒</strong>。按照UNIX时间戳存储，<strong>跟随</strong>时区变化而变化</td>
+	</tr>
+</table>
+
+时间概念:
+
+* GMT: 格林尼治时间。
+* UTC: 世界协调时，UTC ~= GMT。
+* UNIX_TIMESTAMP: UNIX时间戳 = UTC_SECOND( CURRENT_TIME - '1970-01-01 00:00:00').
+* System#currentTimeMillis: 精确到**毫秒**的UNIX时间戳。
+
+TIMESTAMP特性：
+
+1. 使用UNIX_TIMESTAMP存储。所以，会跟随当前时区变化而变化。
+2. 自动记录插入/更新行时间。定义格式：`TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP`。
+3. 精确到秒。
+
+MySQL时间存储:
+
+在一般情况下，`DATETIME`和`TIMESTAMP`没有什么区别，直接使用就可以了。
+但是，如果考虑**时区问题**的话，则这两种数据类型都不是非常的合适。
+`DATETIME`天生不支持时区，`TIMESTAMP`虽然支持时区，但是，在使用`TIMESTAMP`之前，需要设置**当前会话的时区**，比较麻烦。
+所以，**这里推荐采用BIGINT记录当前UTC时间戳(毫秒)**。
+
 ## 参考
 
 * [mysql主从复制](http://369369.blog.51cto.com/319630/790921/)
