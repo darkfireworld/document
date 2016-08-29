@@ -634,20 +634,20 @@ InnoDB支持MVCC,在MVCC并发控制中，读操作可以分成两类：**快照
 	</tr>
 </table>
 
-时间概念:
+**时间概念:**
 
 * GMT: 格林尼治时间。
 * UTC: 世界协调时，UTC ~= GMT。
 * UNIX_TIMESTAMP: UNIX时间戳 = UTC_SECOND( CURRENT_TIME - '1970-01-01 00:00:00').
 * System#currentTimeMillis: 精确到**毫秒**的UNIX时间戳。
 
-TIMESTAMP特性：
+**TIMESTAMP特性:**
 
 1. 使用UNIX_TIMESTAMP存储。所以，会跟随当前时区变化而变化。
 2. 自动记录插入/更新行时间。定义格式：`TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP`。
 3. 精确到秒。
 
-MySQL时间存储:
+**MySQL时间存储:**
 
 在一般情况下，`DATETIME`和`TIMESTAMP`没有什么区别，直接使用就可以了。
 但是，如果考虑**时区问题**的话，则这两种数据类型都不是非常的合适。
