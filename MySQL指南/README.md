@@ -644,7 +644,7 @@ InnoDB支持MVCC,在MVCC并发控制中，读操作可以分成两类：**快照
 **TIMESTAMP特性:**
 
 1. 使用UNIX_TIMESTAMP存储。所以，会跟随当前时区变化而变化。
-2. 自动记录插入/更新行时间。定义格式：`TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP`。
+2. 自动记录插入/更新数据行的时间。定义格式：`TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP`。
 3. 精确到秒。
 
 **MySQL时间存储:**
@@ -652,7 +652,7 @@ InnoDB支持MVCC,在MVCC并发控制中，读操作可以分成两类：**快照
 在一般情况下，`DATETIME`和`TIMESTAMP`没有什么区别，直接使用就可以了。
 但是，如果考虑**时区问题**的话，则这两种数据类型都不是非常的合适。
 `DATETIME`天生不支持时区，`TIMESTAMP`虽然支持时区，但是，在使用`TIMESTAMP`之前，需要设置**当前会话的时区**，比较麻烦。
-所以，**这里推荐采用BIGINT记录当前UTC时间戳(毫秒)**。
+所以，**这里推荐采用BIGINT记录当前UTC时间戳(毫秒)，高效，无歧义。**。
 
 ## 参考
 
