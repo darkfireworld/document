@@ -575,7 +575,7 @@ InnoDB支持MVCC,在MVCC并发控制中，读操作可以分成两类：**快照
 	</tr>
 </table>
 
-注意：**BLOB, TEXT, LONGBLOB, LONGTEXT 不能设置默认值(可为NULL)**。
+注意：**BLOB, TEXT, LONGBLOB, LONGTEXT 不能设置默认值，但是可为`NULL`**。
 
 ### 复合类型
 
