@@ -133,6 +133,63 @@ Java中ClassLoader的加载采用了双亲委托机制，采用双亲委托机�
 
 解决了这个问题，也就顺便的解决了TOMCAT 接口都是由COMMON ClassLoader进行加载Servlet API，而具体的Servlet实现由WebClassLoader 进行加载，并且它们的转换是没有问题的。
 
+## getResource
+
+有时候，我们需要加载和class一起打包的**资源**（如：images，audio，etc）。此时，我们需要可以通过`ClassLoader#getResource`解决这个问题：
+
+```java
+
+ClassLoader:
+
+    /**
+     * Finds the resource with the given name.  A resource is some data
+     * (images, audio, text, etc) that can be accessed by class code in a way
+     * that is independent of the location of the code.
+     *
+     * 查询给定名字(使用"/"分割)的资源(images,audio,etc)。
+     *
+     * 如果查询不到，则返回null。
+     */
+    public URL getResource(String name) {
+        URL url;
+        // 委托父ClassLoader优先查询
+        if (parent != null) {
+            url = parent.getResource(name);
+        } else {
+            url = getBootstrapResource(name);
+        }
+        if (url == null) {
+            // 自己进行查询资源
+            url = findResource(name);
+        }
+        return url;
+    }
+    
+ClassLoader:
+
+    /**
+     * Finds the resource with the given name. Class loader implementations
+     * should override this method to specify where to find resources.
+     *
+     * 通过给定名称，查询资源。子类可以通过覆盖此方法，从而实现查询资源的功能。
+     * 
+     * 如果查询不到，则返回null
+     */
+    protected URL findResource(String name) {
+        return null;
+    }
+    
+```
+
+可以发现，资源的查询流程如下：
+
+1. 委托父ClassLoader查询资源。如果父Cl查询到资源，则返回它，否则继续。
+2. 调用`findResource`方法进行查询。
+
+所以，为了查询**JAR中的资源(images, voice, etc)**，`ClassLoader`的子类(如：`URLClassLoader`)需要实现`findResource`方法。
+
+注意：name 需要使用**"/"**分割。
+
 ## 总结
 
 通过了解ClassLoader，可以学习到JVM的类加载机制，在具体的工作中，可以利用这些特性，比较方便的解决一些 ClassNotFoundException， CAST 异常等问题。
