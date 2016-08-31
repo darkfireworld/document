@@ -224,11 +224,11 @@ Maven插件高度易扩展，可以方便的进行自定义配置。如：配置
 `pluginManagement`和`plugins`都可以定义`plugin`标签，区别在于：
 
 1. `pluginManagement`标签中定义的`plugin`标签不参与**项目构建**，仅仅是声明一个构建规范。
-2. `plugins`标签中定义`plugin`标签会作为**项目构建**信息。
+2. `plugins`标签中定义`plugin`标签会提供**项目构建**信息。
 
 一般来说，我们通过`pluginManagement`标签，可以规范**多模块**的构建信息。
 
-注意：`plugins`标签中的`plugin`已经存在于`pluginManagement`中，则仅仅需要定义**`groupId`和`artifactId`**即可。
+注意：如果`plugins`标签中的`plugin`已经存在于`pluginManagement`中，则仅仅需要定义**`groupId`和`artifactId`**即可。
 
 ## 插件和生命周期
 
@@ -328,11 +328,11 @@ Maven插件高度易扩展，可以方便的进行自定义配置。如：配置
 `dependencyManagement`和`dependencies`都可以定义`dependency`标签，区别在于：
 
 1. `dependencyManagement`标签中定义的`dependency`标签不参与**项目依赖**，仅仅是声明一个依赖规范。
-2. `dependencies`标签中定义`dependency`标签会作为**项目依赖**信息。
+2. `dependencies`标签中定义`dependency`标签会提供**项目依赖**信息。
 
 一般来说，我们通过`dependencyManagement`标签，可以规范**多模块**的依赖信息。
 
-注意：`dependencies`标签中的`dependency`已经存在于`dependencyManagement`中，则仅仅需要定义**`groupId`和`artifactId`**即可。
+注意：如果`dependencies`标签中的`dependency`已经存在于`dependencyManagement`中，则仅仅需要定义**`groupId`和`artifactId`**即可。
 
 ## 仓库和镜像
 
