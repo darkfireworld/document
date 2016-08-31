@@ -360,13 +360,13 @@ Spring在初始化和使用**BeanFactoryPostProcessor和BeanPostProcessor**的�
 
 通过上图，可以比较清晰的了解到bean的生命周期。现在，介绍一下bean生命周期中关键的点：
 
-* 实例化bean对象：bean采用**无参数构造函数**实例化（@Component，xml#bean），或者，采用**构造方法**进行实例化（@Bean）。
+* 实例化bean对象：bean采用**无参数构造函数**实例化（@Component，xml#bean），或者，采用**工厂方法**进行实例化（@Bean）。
 
 * 设置对象属性：容器会设置bean的属性，包括@Autowired注入（AutowiredAnnotationBeanPostProcessor）
 
 * BeanPostProcessor#前置处理：注入`Aware`（ApplicationContextAwareProcessor）以及调用`@PostConstruct`（CommonAnnotationBeanPostProcessor）。
 
-* invokeInitMethods: 容器会调用bean的初始化方法`InitializingBean#afterPropertiesSet`以及`自定义init方法`。
+* invokeInitMethods: 容器会调用bean的初始化方法`InitializingBean#afterPropertiesSet`以及`自定义init`方法。
 
 * BeanPostProcessor#后置处理: 这个阶段提供了**Spring Aop**（AnnotationAwareAspectJAutoProxyCreator）的支持了。
 
