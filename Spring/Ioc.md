@@ -364,11 +364,11 @@ Spring在初始化和使用**BeanFactoryPostProcessor和BeanPostProcessor**的�
 
 * 设置对象属性：在此阶段，容器会设置bean的属性，包括@Autowired注入（AutowiredAnnotationBeanPostProcessor）。
 
-* BeanPostProcessor#postProcessBeforeInitialization处理：注入`Aware`（ApplicationContextAwareProcessor）以及调用`@PostConstruct`（CommonAnnotationBeanPostProcessor）。
+* BeanPostProcessor#前置处理：注入`Aware`（ApplicationContextAwareProcessor）以及调用`@PostConstruct`（CommonAnnotationBeanPostProcessor）。
 
 * invokeInitMethods: 容器会调用bean的初始化方法`InitializingBean#afterPropertiesSet`以及`自定义init方法`。
 
-* BeanPostProcessor#postProcessAfterInitialization:这个阶段，比较重要的就是对**Spring Aop**（AnnotationAwareAspectJAutoProxyCreator）的支持了。
+* BeanPostProcessor#后置处理:这个阶段，比较重要的就是对**Spring Aop**（AnnotationAwareAspectJAutoProxyCreator）的支持了。
 
 * 注册Destruction回调：使用**DisposableBeanAdapter**包装bean对象，然后注册到对应作用域的**析构链**中。
 
@@ -376,7 +376,7 @@ Spring在初始化和使用**BeanFactoryPostProcessor和BeanPostProcessor**的�
 
 可以发现，spring中许多特性，如：@Autowired，@PostConstruct，@PreDestroy，Aop等，都是通过**后处理器**完成的。
 
-注意：上述流程不考虑"短生命周期"。
+注意：上述流程不考虑**短生命周期**。
 
 ### 关于Annotations
 
