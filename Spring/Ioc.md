@@ -382,7 +382,7 @@ Spring在初始化和使用**BeanFactoryPostProcessor和BeanPostProcessor**的�
 
 ![](E790.tmp.jpg)
 
-通过上述的`Annotations`可以实现比较基础的Bean配置。更加高级的可以参考`@Configuration`，`@Bean`以及`@Import`注解。
+通过上述的`Annotations`可以实现比较基础的Bean配置。更加高级的可以参考`@Configuration`，`@Bean`，`@Import`以及`@Conditional`注解。
 
 注意：`@Bean`和`@Autowired`不能混用。
 
@@ -844,6 +844,7 @@ PostProcessorRegistrationDelegate:
 1. @Bean: 声明一个Bean定义。
 2. @ComponentScan: 扫描指定包下面的@Component标记的Bean定义。
 3. @Import: 加载指定的配置类，如SpringConf。
+4. @Conditional: 判定注解标记(@Component, @Bean, etc )的bean是否允许加载到容器中。
 
 在容器初始化阶段，通过`ConfigurationClassPostProcessor`这个后处理器，分析`@Configuration`注解的配置类(SpringConf)，动态添加@Bean标注的`BeanDefinition`到容器中。
 
@@ -853,6 +854,7 @@ PostProcessorRegistrationDelegate:
 2. **只能**通过`BeanDefinitionRegistryPostProcessor`这个工厂后处理器添加新的`BeanDefinition`到容器中。
 3. 在此阶段，Spring仅仅会搜集`BeanDefinition`到容器中，最大程度避免Bean在`finishBeanFactoryInitialization`之前初始化(包括`@Configuration`配置类)。
 4. Spring将使用**CGLIB静态代理**被`@Bean`注解所在的类(如：SpringConf)，避免@Bean方法相互调用的时候生成新的**Singleton Bean**。
+5. 通过`@Conditional`注解，可以实现**按需加载bean**的功能。这个特性在`Spring Boot`中被广泛使用。
 
 **registerBeanPostProcessors:**
 
