@@ -98,7 +98,7 @@ Java中ClassLoader的加载采用了双亲委托机制，采用双亲委托机�
             <ul>
                 <li>JVM读取加载class A的 <code>ClassLoader</code>所<strong>关联的clz缓存</strong>，查询缓存中是否存在class B的类定义</li>
                 <li>如果<strong>clz缓存</strong>中存在class B的类定义，则直接返回它</li>
-                <li>如果clz缓存中不存在class B的类定义，则JVM使用加载class A的ClassLoader，通过调用<code>loadClass</code>方法，尝试加载class B的类定义</li>
+                <li>如果clz缓存中不存在class B的类定义，则JVM使用<strong>加载class A的ClassLoader</strong>，调用<code>loadClass</code>方法，尝试加载class B的类定义</li>
                 <li>如果无法加载class B的类定义，则抛出异常</li>
             </ul>
         </td>
