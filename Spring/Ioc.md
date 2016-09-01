@@ -846,7 +846,7 @@ PostProcessorRegistrationDelegate:
 3. @Import: 加载指定的配置类，如SpringConf。
 4. @Conditional: 判定注解标记(@Component, @Bean, etc )的bean是否允许加载到容器中。
 
-在容器初始化阶段，通过`ConfigurationClassPostProcessor`这个后处理器，分析`@Configuration`注解的配置类(SpringConf)，动态添加@Bean标注的`BeanDefinition`到容器中。
+在容器初始化阶段，通过`ConfigurationClassPostProcessor`这个后处理器，分析`@Configuration`注解的配置类(SpringConf)，动态添加bean的定义`BeanDefinition`到容器中。
 
 注意：
 
