@@ -58,17 +58,9 @@ Java中ClassLoader的加载采用了双亲委托机制，采用双亲委托机�
 
 ### loadClass
 
-这个方法，包含了读取缓存，双亲委托的功能，如果想打破**双亲委托模型**，则需要重写该方法。
+通过这个方法，实现了**类加载**功能。
 
-触发`loadClass`的条件：
-
-1. 手动调用`loadClass`方法。
-2. 处理类A中的依赖类B的时候`for new B()`
-    1. JVM查询加载类A的ClassLoader的clz缓存，判断clz缓存中是否存在类B。
-    2. clz缓存中存在类B，则直接返回类B。
-    3. clz缓存中不存在类B，则调用`loadClass`进行加载类B。
-
-注意：loadClass 会优先查询clz缓存。
+注意：如果想打破**双亲委托模型**，则需要重写该方法。
 
 ### findClass
 
@@ -85,6 +77,35 @@ Java中ClassLoader的加载采用了双亲委托机制，采用双亲委托机�
 通过这个方法，就可以把二进制文件转换为JVM内部的Class对象，且这个方法**不能被重写**，也应该是唯一的入口。
 
 >值得注意的是，即使你重写了ClassLoader，如果加载java.*的类，JVM会拒绝你，因为只能通过bootstrap加载java.* 的Class
+
+## 触发类加载
+
+<table>
+    <tr>
+        <th>调用者</th>
+        <th>促发条件</th>
+        <th>流程描述</th>
+    </tr>
+    <tr>
+        <td>码农</td>
+        <td>调用<code>loadClass</code>或者<code>forName</code>方法</td>
+        <td>如果调用<code>forName</code>方法，最后还是会执行<code>loadClass</code>方法，进行加载类定义</td>
+    </tr>
+    <tr>
+        <td>JVM</td>
+        <td>JVM在执行class A的code，需要使用class B的类定义的时候。比如说：<code>new B()</code></td>
+        <td>
+            <ul>
+                <li>JVM读取加载class A的 <code>ClassLoader</code>所<strong>关联的clz缓存</strong>，查询缓存中是否存在class B的类定义</li>
+                <li>如果<strong>clz缓存</strong>中存在class B的类定义，则直接返回它</li>
+                <li>如果clz缓存中不存在class B的类定义，则JVM使用加载class A的ClassLoader，通过调用<code>loadClass</code>方法，尝试加载class B的类定义</li>
+                <li>如果无法加载class B的类定义，则抛出异常</li>
+            </ul>
+        </td>
+    </tr>
+</table>
+
+注意：对于类的加载，JVM采用**懒加载策略**。
 
 ## 常见的ClassLoader API
 
