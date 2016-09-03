@@ -846,6 +846,8 @@ PostProcessorRegistrationDelegate:
 3. @Import: 加载指定的配置类，如SpringConf。
 4. @Conditional: 判定注解标记(@Component, @Bean, etc )的bean是否允许加载到容器中。
 
+详情可见：`ConfigurationClassPostProcessor#processConfigBeanDefinitions`方法。
+
 注意：
 
 1. Invoke都会通过`PriorityOrdered`，`Ordered` ，`Non-Ordered`方式进行排序，避免工厂后处理器依赖的问题。
