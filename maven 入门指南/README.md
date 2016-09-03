@@ -724,7 +724,7 @@ ${username}
 然后我们运行命令`mvn compile`，就可以发现`target/classes/config.xml`已经被替换为默认debug的${username}->debug。
 而`META-INF/hello.cc`保持${username}。
 
-**注意： 我们可以通过 `mvn compile -P release ` 来指定使用release配置。**
+**注意：可以通过 `mvn compile -P release ` 来激活release配置。（mvn可以同时激活多个配置）**
 
 通过`<profiles>`属性，我们可以非常方便的提供不同环境的配置信息。当然了`<profiles>`不仅仅是是这种功能，还有其他功能。
 
