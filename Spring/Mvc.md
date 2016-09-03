@@ -1094,9 +1094,7 @@ DispatcherServlet：
 
 ### Response Ways 
 
-**响应方式**:
-
-1. 动态-模版: 标准MVC模式。如：freemarker, jsp , etc.
+1. 动态-模版: 标准MVC模式。
 2. 动态-ANY: 遇到标准MVC模式无法处理的情况(JSON, XML, 动态文件下载, etc)时，可以直接在Ctrl中生成响应报文。
 3. 静态页面(默认): 当请求静态文件的时候，则可以直接返回它。
 
