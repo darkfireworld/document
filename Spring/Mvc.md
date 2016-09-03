@@ -100,63 +100,56 @@
 @EnableAspectJAutoProxy(proxyTargetClass = true)
 @ComponentScan("org.darkgem")
 public class SpringConf {
-    static Logger logger = LoggerFactory.getLogger(SpringConf.class);
-
-
     /**
      * Spring MVC 配置
      */
     @Component
-    // 开启Spring Mvc
     @EnableWebMvc
-    // Spring Mvc 配置器，当然，也可以不通过这个Adapter配置
     static class SpringMvcConf extends WebMvcConfigurerAdapter {
 
-        // 配置默认ServletHandler
+        // MessageConverter Support for @RequestBody, etc
+        @Override
+        public void extendMessageConverters(List<HttpMessageConverter<?>> converters) {
+            // 添加JSON支持
+            converters.add(new FastJsonHttpMessageConverter());
+        }
+
+        // 默认Servlet支持
         @Override
         public void configureDefaultServletHandling(DefaultServletHandlerConfigurer configurer) {
             configurer.enable();
         }
 
-        // 配置视图渲染
-        @Override
-        public void configureViewResolvers(ViewResolverRegistry registry) {
-            registry.order(1);
-
-            FastJsonJsonView fastJsonJsonView = new FastJsonJsonView();
-            fastJsonJsonView.setExtractValueFromSingleKeyModel(true);
-
-            registry.enableContentNegotiation(fastJsonJsonView);
-
-        }
     }
 }
+
 ```
 
 在上述注解式配置中，通过`SpringMvcConf`配置了SpringMvc组件：
 
 1. 默认ServlerHandler处理
-2. JSON渲染器
+2. FastJson HttpMessageConverter 
 
 **控制器：**
 
 
 ```java
 
+
 @Controller
 @RequestMapping("/todo/TodoCtrl")
 public class TodoCtrl {
 
     @RequestMapping("/hello")
+    @ResponseBody
     public Message hello() {
         return Message.okMessage("Hello");
     }
 }
 
-
 ```
 
-上述，是一个简单的Ctrl控制器，用于返回Hello字符串。
+上述，是一个简单的Ctrl控制器，用于返回Hello Json 字符串。
 
 **测试：**
 
@@ -375,7 +368,11 @@ public interface HandlerAdapter {
 
 `HandlerAdapter`的重要子类：
 
-* RequestMappingHandlerAdapter: 最新的`HandlerAdapter`子类，支持**参数解析器**，**返回对象处理器**等特性。
+* RequestMappingHandlerAdapter: 最新的`HandlerAdapter`子类，支持如下特性：
+	1. **参数解析器(HandlerMethodArgumentResolver)**: 提供参数注入(`@RequestParam`,`HttpSession`,etc )支持。
+	2. **结果解析器(HandlerMethodReturnValueHandler)**: 提供结果处理(`@ResponseBody`,`StreamingResponseBody`,etc)支持。
+	3. **转换器(HttpMessageConverter)**: 此特性被包含于`参数解析器`和`结果解析器`中。详情可见:`RequestResponseBodyMethodProcessor`。
+
 * HttpRequestHandlerAdapter: handler类型为`HttpRequestHandler`（如：`DefaultServletHttpRequestHandler`）的适配器。
 
 通过`HandlerAdapter#handle`方法，可以**修饰/处理**来自于`HandlerMapping#getHandler`获取的handler对象。
@@ -936,8 +933,8 @@ DispatcherServlet：
 
 通过`processDispatchResult`方法，可以将之前调用的结果(Exception ex，ModelAndView mv)进行处理：
 
-1. 如果存在`Exception ex`则调用`processHandlerException`进行处理异常。
-2. 如果存在`ModelAndView mv`则调用`render`进行渲染视图。
+1. 如果`Exception ex != null`则调用`processHandlerException`进行处理异常。
+2. 如果`ModelAndView mv != null`则调用`render`进行渲染视图。
 3. 最后调用拦截器的`afterCompletion`方法。
 
 注意：**当异常类型为`ModelAndViewDefiningException`的时候，会直接获取mv数值，不会使用`HandlerExceptionResolver`处理它。**
@@ -1094,6 +1091,16 @@ DispatcherServlet：
 **会优先向客户端传输 RESPONSE HEADERS**，并且标记RESPONSE为**COMMITTED状态**。
 
 注意：调用`flush`方法之后，对**RESPONSE HEADERS**修改操作将无效。
+
+### Response Ways 
+
+**响应方式**:
+
+1. 动态-模版: 标准MVC模式。如：freemarker, jsp , etc.
+2. 动态-ANY: 遇到标准MVC模式无法处理的情况(JSON, XML, 动态文件下载, etc)时，可以直接在Ctrl中生成响应报文。
+3. 静态页面(默认): 当请求静态文件的时候，则可以直接返回它。
+
+良好的**响应方式**设计，有利于提高维护性。
 
 ## 参考
 
