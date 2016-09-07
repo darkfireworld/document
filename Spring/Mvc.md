@@ -369,7 +369,7 @@ public interface HandlerAdapter {
 `HandlerAdapter`的重要子类：
 
 * RequestMappingHandlerAdapter: 最新的`HandlerAdapter`子类，支持如下特性：
-	1. **参数解析器(HandlerMethodArgumentResolver)**: 提供参数注入(`@RequestParam`,`HttpSession`,etc )支持。
+	1. **参数解析器(HandlerMethodArgumentResolver)**: 提供参数注入(`@RequestParam`,`@RequestBody`,`HttpSession`,etc )支持。
 	2. **结果解析器(HandlerMethodReturnValueHandler)**: 提供结果处理(`@ResponseBody`,`StreamingResponseBody`,etc)支持。
 	3. **转换器(HttpMessageConverter)**: 此特性被包含于`参数解析器`和`结果解析器`中。详情可见:`RequestResponseBodyMethodProcessor`。
 
