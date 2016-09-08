@@ -112,13 +112,13 @@ JVM调试参数：
 
 说明：
 
-| 参数                | 含义                                                                       |
-|---------------------|----------------------------------------------------------------------------|
-| -agentlib:jdwp      | 添加Java编程语言代理jdwp（调试）。                                         |
-| transport=dt_socket | 采用socket通道传输数据                                                     |
-| address=[ip:port]   | 当server=y的时候，则监听[ip:port]; 当server=n的时候，则向[ip:port]发起连接 |
-| server=[y/n]        | y表示监听address; n表示向address发起连接                                   |
-| suspend=[y/n]       | y表示挂起程序，等待调试器连接; n表示不挂起程序，直接运行                   |
+| 参数                | 含义                                                                           |
+|---------------------|--------------------------------------------------------------------------------|
+| -agentlib:jdwp      | 添加Java编程语言代理jdwp（调试组件）。                                         |
+| transport=dt_socket | 采用socket通道传输数据                                                         |
+| address=[ip:port]   | 当server=y的时候，则监听[ip:port]; 当server=n的时候，则向[ip:port]发起调试连接 |
+| server=[y/n]        | y表示监听address; n表示向address发起调试连接                                   |
+| suspend=[y/n]       | y表示挂起程序，等待调试器连接; n表示不挂起程序，直接运行                       |
 
 这样子，就开启了JVM的调试功能，然后通过远程调试器连接上，既可以进行调试了。
 
