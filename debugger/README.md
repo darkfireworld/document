@@ -114,7 +114,7 @@ JVM调试参数：
 
 | 参数                | 含义                                                                           |
 |---------------------|--------------------------------------------------------------------------------|
-| -agentlib:jdwp      | 添加Java编程语言代理jdwp（调试组件）。                                         |
+| -agentlib:jdwp      | 加载本机代理库jdwp（调试组件）。                                               |
 | transport=dt_socket | 采用socket通道传输数据                                                         |
 | address=[ip:port]   | 当server=y的时候，则监听[ip:port]; 当server=n的时候，则向[ip:port]发起调试连接 |
 | server=[y/n]        | y表示监听address; n表示向address发起调试连接                                   |
