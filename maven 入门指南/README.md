@@ -1052,6 +1052,7 @@ ctrl module 相当于mvc模块，用于接入http请求等，pom.xml为：
 * [maven学习（中）- 私服nexus搭建](http://www.cnblogs.com/yjmyzz/p/3519373.html)
 * [maven学习（下）利用Profile构建不同环境的部署包](http://www.cnblogs.com/yjmyzz/p/3941043.html)
 * [Maven学习 (六) 搭建多模块企业级项目](http://www.cnblogs.com/quanyongan/archive/2013/05/28/3103243.html)
+* [maven 插件开发](http://maven.apache.org/guides/plugin/guide-java-plugin-development.html)
 * [如何使用Android Studio把自己的Android library分享到jCenter和Maven Central](http://www.open-open.com/lib/view/open1435109824278.html)
 * [Maven和Gradle对比](http://www.huangbowen.net/blog/2016/02/23/gradle-vs-maven/?utm_source=tuicool&utm_medium=referral)
 * [玩转迭代开发](https://github.com/darkfireworld/self-doc/tree/master/玩转迭代开发)
