@@ -180,7 +180,7 @@ Maven定义了三套生命周期：`clean、default、site`，每个生命周期
 
 ## 插件
 
-Maven的核心文件很小，主要的任务都是由插件来完成。定位到：`%本地仓库%\org\apache\maven\plugins`，可以看到一些下载好的插件：
+Maven的核心文件很小，主要的任务(构建)都是由插件来完成。定位到：`%本地仓库%\org\apache\maven\plugins`，可以看到一些下载好的插件：
 
 ![mvn-plugins](CD81.tmp.jpg)
 
@@ -239,18 +239,94 @@ Maven插件高度易扩展，可以方便的进行自定义配置。如：配置
 ![mvn--help](F550.tmp.jpg)
 
 
-### bind过程
+### 绑定goals
 
 **Maven的生命周期是抽象的，实际需要插件来完成具体任务。**这一过程是通过将插件的目标（goal）绑定到生命周期的具体阶段（phase）来完成的。
 如：将`maven-compiler-plugin`插件的`compile目标`绑定到default生命周期的`compile阶段`，完成项目的源代码编译：
 
 ![maven-plugin-bind](A0FB.tmp.jpg)
 
-### 默认bind
+#### 默认的goals
 
-在maven中，已经存在了一些预定义的插件以及相应的生命周期绑定。详细可见`%M3_HOME%\maven-core\src\main\resources\META-INF\plexus\default-bindings.xml`。
+根据`pom#packaging`的不同，maven会绑定一些默认的goals到默认生命周期中(`%M3_HOME%\maven-core\src\main\resources\META-INF\plexus\default-bindings.xml`)：
 
-注意：**Maven的依赖管理并不依赖插件实现。**
+```xml
+	...
+	<!--
+     | JAR
+     |-->
+    <component>
+      <role>org.apache.maven.lifecycle.mapping.LifecycleMapping</role>
+      <role-hint>jar</role-hint>
+      <implementation>org.apache.maven.lifecycle.mapping.DefaultLifecycleMapping</implementation>
+      <configuration>
+        <lifecycles>
+          <lifecycle>
+            <id>default</id>
+            <!-- START SNIPPET: jar-lifecycle -->
+            <phases>
+              <process-resources>
+                org.apache.maven.plugins:maven-resources-plugin:2.6:resources
+              </process-resources>
+              <compile>
+                org.apache.maven.plugins:maven-compiler-plugin:3.1:compile
+              </compile>
+              <process-test-resources>
+                org.apache.maven.plugins:maven-resources-plugin:2.6:testResources
+              </process-test-resources>
+              <test-compile>
+                org.apache.maven.plugins:maven-compiler-plugin:3.1:testCompile
+              </test-compile>
+              <test>
+                org.apache.maven.plugins:maven-surefire-plugin:2.12.4:test
+              </test>
+              <package>
+                org.apache.maven.plugins:maven-jar-plugin:2.4:jar
+              </package>
+              <install>
+                org.apache.maven.plugins:maven-install-plugin:2.4:install
+              </install>
+              <deploy>
+                org.apache.maven.plugins:maven-deploy-plugin:2.7:deploy
+              </deploy>
+            </phases>
+            <!-- END SNIPPET: jar-lifecycle -->
+          </lifecycle>
+        </lifecycles>
+      </configuration>
+    </component>
+	...
+```
+
+以上就是`packaging=jar`所绑定的默认goals。
+
+#### 第三方插件的goals
+
+通过配置pom文件，可以将第三方插件的goals绑定到当前项目的生命周期中：
+
+```xml
+  ...
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>sample.plugin</groupId>
+        <artifactId>hello-maven-plugin</artifactId>
+        <version>1.0-SNAPSHOT</version>
+        <executions>
+          <execution>
+            <phase>compile</phase>
+            <goals>
+              <goal>sayhi</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+  ...
+```
+
+通过以上配置，就可以将`goal=sayhi`绑定到生命周期的compile阶段。
 
 ## 依赖和坐标
 
