@@ -524,7 +524,13 @@ ProxyFactory:
 
 这两种方式，其实和`AspectJ In Spring Aop`类似，也都是通过后处理器完成的。
 
+## 扩展
+
+`Aop`编程模式不仅仅在Java语言中有广泛的使用，在其他方面也有广泛的使用，比如说：INLINE HOOK（C/C++）等。
+通过`Aop`编程模式，可以极大的减少重复代码量，实现`无侵入式`的监控，日志，事务等功能。
+
 ## 参考
 
 * [AOP的实现机制](http://www.iteye.com/topic/1116696)
 * [Spring AOP 实现原理与 CGLIB 应用](http://blog.jobbole.com/28791/)
+* [Android平台inline hook实现](http://gslab.qq.com/article-168-1.html)
