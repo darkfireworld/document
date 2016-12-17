@@ -854,7 +854,7 @@ PostProcessorRegistrationDelegate:
 2. **只能**通过`BeanDefinitionRegistryPostProcessor`这个工厂后处理器添加新的`BeanDefinition`到容器中。
 3. 在此阶段，Spring仅仅会搜集`BeanDefinition`到容器中，最大程度避免Bean在`finishBeanFactoryInitialization`之前初始化(包括`@Configuration`配置类)。
 4. Spring将使用**CGLIB静态代理**被`@Bean`注解所在的类(如：SpringConf)，避免@Bean方法相互调用的时候生成新的**Singleton Bean**。
-5. 通过`@Conditional`注解，可以实现**按需加载bean**的功能。这个特性在`Spring Boot`中被广泛使用。
+5. 通过`@Conditional`注解，可以实现**按需加载bean**的功能(依赖ASM技术)。这个特性在`Spring Boot`中被广泛使用。
 6. 如果`@ComponentScan`**没有指定扫描的包名**，则默认扫描被**`@ComponentScan`标记的类**所在的包名。
 7. `@Import`拥有不同的行为：直接导入(Normal)，选择导入(ImportSelector)，**延迟选择导入**(DeferredImportSelector)，etc。
 
