@@ -251,6 +251,8 @@ versionCode计算公式为：
 
 **-p：**After fetching, remove any remote-tracking references that no longer exist on the remote.
 
+**注意：`git pull`指令一般不推荐使用。**
+
 推送本地到remote
 
 `git push -v [-u] <remote> [<local-branch>][:<remote-branch>]`
