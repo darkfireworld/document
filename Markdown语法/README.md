@@ -139,6 +139,25 @@
 
 ```
 
+## 内嵌HTML
+
+```
+
+	<table>
+		<tr>
+			<th>表头1</th>
+			<th>表头2</th>
+		</tr>
+		<tr>
+			<td>TDC</td>
+			<td>TDC</td>
+		</tr>
+	</table>
+
+```
+
+`markdown`也支持内嵌html代码，加强了对复杂页面的呈现能力。
+
 ## 总结
 
 markdown是一种神奇的语言，多练练就会用了。因为Markdown是纯文本格式，所以在对SVN和GIT支持非常好，不像doc文件，
