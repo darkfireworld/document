@@ -1042,6 +1042,7 @@ ctrl module 相当于mvc模块，用于接入http请求等，pom.xml为：
 
 ## 参考
 
+* [Maven 官方用户指南](http://maven.apache.org/users/index.html)
 * [Maven 快速入门及简单使用](http://www.cnblogs.com/luotaoyeah/p/3764533.html)
 * [Maven 教程](https://ayayui.gitbooks.io/tutorialspoint-maven/content/)
 * [maven中snapshot快照库和release发布库的区别和作用](http://www.mzone.cc/article/277.html)
