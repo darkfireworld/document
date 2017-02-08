@@ -1038,6 +1038,12 @@ ctrl module 相当于mvc模块，用于接入http请求等，pom.xml为：
 
 **注意：`parent`标签不一定要和`modules`标签一起使用，比如说：指定公共的依赖信息等。**
 
+### 批量修改版本号
+
+1. 设置新的版本号：`mvn versions:set -DnewVersion=1.1.3`
+2. 当新版本号设置不正确时可以撤销新版本号的设置：`mvn versions:revert`
+3. 确认新版本号无误后提交新版本号的设置:`mvn versions:commit`
+
 项目地址：[maven-multi-project](maven-multi-project.zip)
 
 ## 参考
