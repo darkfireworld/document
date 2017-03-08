@@ -666,6 +666,7 @@ TransactionAspectSupport:
 
 当出现异常的时候，调用`completeTransactionAfterThrowing`来处理。**根据事务定义决定回滚还是提交当前事务。**
 
+注意：默认情况下仅仅只有`RuntimeException`和`Error`的异常会进行回滚操作。(见：`DefaultTransactionAttribute.java`)
 
 **cleanupTransactionInfo:**
 
