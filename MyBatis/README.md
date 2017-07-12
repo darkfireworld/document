@@ -1302,7 +1302,7 @@ public void parseStatementNode() {
 
 **注意：**
 
-1. `${}` 表示动态SQL占用符，而`#{}`表示一个参数占用符。
+1. `${}` 表示`动态SQL`占用符，而`#{}`表示一个`参数`占用符(采用`PreparedStatement`+`?`的方式实现)。
 2. `<include>#<property>` 会定义构造时候的上下文变量，用来替换指向`<sql>`语句中的`${key}`。可以查看`XMLIncludeTransformer`的源码。
 
 **MappedStatement:**
