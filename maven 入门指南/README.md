@@ -334,7 +334,7 @@ Maven的生命周期是抽象的，实际需要插件来完成具体任务。这
 > If more than one goal is bound to a particular phase, the order used is that those from the packaging are executed first, 
 > followed by those configured in the POM.
 
-当一个`phase`绑定多个`goals`的时候，它们将按照出现在`POM`中的顺序执行。
+当一个`phase`绑定多个`goals`的时候，它们(goals)将按照出现在`POM`中的顺序执行。
 
 ## 依赖和坐标
 
