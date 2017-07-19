@@ -241,7 +241,7 @@ Maven插件高度易扩展，可以方便的进行自定义配置。如：配置
 
 ### 绑定goals
 
-**Maven的生命周期是抽象的，实际需要插件来完成具体任务。**这一过程是通过将插件的目标（goal）绑定到生命周期的具体阶段（phase）来完成的。
+Maven的生命周期是抽象的，实际需要插件来完成具体任务。这一过程是通过将插件的目标（goal）绑定到生命周期的具体阶段（phase）来完成的。
 如：将`maven-compiler-plugin`插件的`compile目标`绑定到default生命周期的`compile阶段`，完成项目的源代码编译：
 
 ![maven-plugin-bind](A0FB.tmp.jpg)
@@ -328,6 +328,14 @@ Maven插件高度易扩展，可以方便的进行自定义配置。如：配置
 
 通过以上配置，就可以将`goal=sayhi`绑定到生命周期的compile阶段。
 
+#### phase绑定多个goals
+
+> The goals that are configured will be added to the goals already bound to the lifecycle from the packaging selected. 
+> If more than one goal is bound to a particular phase, the order used is that those from the packaging are executed first, 
+> followed by those configured in the POM.
+
+当一个`phase`绑定多个`goals`的时候，它们将按照出现在`POM`中的顺序执行。
+
 ## 依赖和坐标
 
 通过maven我们可以管理项目的构建过程。而依赖管理是项目构建最重要的一个点。现在，我们来说说`dependency`这个属性。
@@ -409,6 +417,65 @@ Maven插件高度易扩展，可以方便的进行自定义配置。如：配置
 一般来说，我们通过`dependencyManagement`标签，可以规范**多模块**的依赖信息。
 
 注意：如果`dependencies`标签中的`dependency`已经存在于`dependencyManagement`中，则仅仅需要定义**`groupId`和`artifactId`**即可。
+
+### import scope
+
+Maven的继承和Java的继承一样，是`无法实现多重继承`的。通过`import scope`可以把`dependencyManagement`放到单独的
+专门用来管理依赖的POM中，然后在需要使用依赖的模块中通过`import scope`依赖，就可以引入`dependencyManagement`:
+
+```
+<project>
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>com.juvenxu.sample</groupId>
+  <artifactId>sample-dependency-infrastructure</artifactId>
+  <packaging>pom</packaging>
+  <version>1.0-SNAPSHOT</version>
+  <dependencyManagement>
+    <dependencies>
+        <dependency>
+          <groupId>junit</groupId>
+          <artifactid>junit</artifactId>
+          <version>4.8.2</version>
+          <scope>test</scope>
+        </dependency>
+        <dependency>
+          <groupId>log4j</groupId>
+          <artifactid>log4j</artifactId>
+          <version>1.2.16</version>
+        </dependency>
+    </dependencies>
+  </dependencyManagement>
+</project>
+```
+
+然后我就可以通过非继承的方式来引入这段依赖管理配置：
+
+```
+  <dependencyManagement>
+    <dependencies>
+        <dependency>
+          <groupId>com.juvenxu.sample</groupId>
+          <artifactid>sample-dependency-infrastructure</artifactId>
+          <version>1.0-SNAPSHOT</version>
+          <type>pom</type>
+          <scope>import</scope>
+        </dependency>
+    </dependencies>
+  </dependencyManagement>
+
+  <dependency>
+    <groupId>junit</groupId>
+    <artifactid>junit</artifactId>
+  </dependency>
+  <dependency>
+    <groupId>log4j</groupId>
+    <artifactid>log4j</artifactId>
+  </dependency>
+```
+
+这样，父模块的POM就会非常干净，由专门的packaging为pom的POM来管理依赖，也契合的面向对象设计中的单一职责原则。
+此外，我们还能够创建多个这样的依赖管理POM，以更细化的方式管理依赖。这种做法与面向对象设计中使用组合而非继承
+也有点相似的味道。
 
 ## 仓库和镜像
 
@@ -530,6 +597,7 @@ maven在解析一个坐标的时候，会优先使用`本地仓库`。
   <build>
     <directory>${project.basedir}/target</directory>
     <outputDirectory>${project.build.directory}/classes</outputDirectory>
+	<!--注意：打包的名字-->
     <finalName>${project.artifactId}-${project.version}</finalName>
     <testOutputDirectory>${project.build.directory}/test-classes</testOutputDirectory>
     <sourceDirectory>${project.basedir}/src/main/java</sourceDirectory>
@@ -1049,6 +1117,8 @@ ctrl module 相当于mvc模块，用于接入http请求等，pom.xml为：
 ## 参考
 
 * [Maven 官方用户指南](http://maven.apache.org/users/index.html)
+* [Introduction to the Build Lifecycle](https://maven.apache.org/guides/introduction/introduction-to-the-lifecycle.html)
+* [Maven实战-多模块项目的POM重构](http://www.infoq.com/cn/news/2011/01/xxb-maven-3-pom-refactoring/)
 * [Maven 快速入门及简单使用](http://www.cnblogs.com/luotaoyeah/p/3764533.html)
 * [Maven 教程](https://ayayui.gitbooks.io/tutorialspoint-maven/content/)
 * [maven中snapshot快照库和release发布库的区别和作用](http://www.mzone.cc/article/277.html)
